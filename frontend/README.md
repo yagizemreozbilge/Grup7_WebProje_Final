@@ -1,70 +1,74 @@
-# Getting Started with Create React App
+# Frontend - Campus Management System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Kurulum
 
-## Available Scripts
+### Gereksinimler
+- Node.js 18+
+- npm veya yarn
 
-In the project directory, you can run:
+### Adımlar
 
-### `npm start`
+1. **Bağımlılıkları yükleyin:**
+```bash
+npm install
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+2. **Environment değişkenlerini ayarlayın:**
+`.env` dosyası oluşturun:
+```env
+REACT_APP_API_URL=http://localhost:5000/api/v1
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+3. **Development sunucusunu başlatın:**
+```bash
+npm start
+```
 
-### `npm test`
+Uygulama `http://localhost:3000` adresinde açılacaktır.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Build
 
-### `npm run build`
+Production build oluşturmak için:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+npm run build
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Build dosyaları `build/` klasörüne oluşturulacaktır.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Test
 
-### `npm run eject`
+```bash
+npm test
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Proje Yapısı
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```
+frontend/
+├── public/          # Static files
+├── src/
+│   ├── components/  # React components
+│   ├── context/     # React context (Auth)
+│   ├── pages/       # Page components
+│   ├── services/    # API services
+│   ├── utils/       # Utility functions
+│   ├── App.js       # Main app component
+│   └── index.js     # Entry point
+└── package.json
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Özellikler
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+- ✅ Login/Register sayfaları
+- ✅ Email doğrulama
+- ✅ Şifre sıfırlama
+- ✅ Dashboard
+- ✅ Profil yönetimi
+- ✅ Profil fotoğrafı yükleme
+- ✅ Protected routes
+- ✅ Role-based navigation
 
-## Learn More
+## Kullanım
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Detaylı kullanım kılavuzu için `USER_MANUAL_PART1.md` dosyasına bakın.

@@ -1,0 +1,66 @@
+const userService = require('../services/userService');
+const path = require('path');
+
+const getCurrentUser = async (req, res, next) => {
+  try {
+    const user = await userService.getCurrentUser(req.user.id);
+    res.status(200).json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProfile = async (req, res, next) => {
+  try {
+    const user = await userService.updateProfile(req.user.id, req.body);
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      user
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const uploadProfilePicture = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Create URL path (relative to server)
+    const filePath = `/uploads/${req.file.filename}`;
+    const profilePictureUrl = await userService.updateProfilePicture(req.user.id, filePath);
+    
+    res.status(200).json({
+      message: 'Profile picture uploaded successfully',
+      profilePictureUrl
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAllUsers = async (req, res, next) => {
+  try {
+    const { page, limit, role, department_id, search } = req.query;
+    const result = await userService.getAllUsers({
+      page,
+      limit,
+      role,
+      department_id,
+      search
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = {
+  getCurrentUser,
+  updateProfile,
+  uploadProfilePicture,
+  getAllUsers
+};
+

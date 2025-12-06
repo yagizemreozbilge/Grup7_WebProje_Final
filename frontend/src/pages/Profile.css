@@ -1,0 +1,174 @@
+.profile-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.profile-content {
+  display: flex;
+  margin-top: 60px;
+}
+
+.profile-main {
+  flex: 1;
+  padding: 30px;
+  margin-left: 250px;
+  max-width: 800px;
+}
+
+.profile-main h1 {
+  color: #333;
+  margin-bottom: 30px;
+}
+
+.profile-section {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.profile-section h2 {
+  color: #667eea;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 10px;
+}
+
+.profile-picture-section {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.profile-picture {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #667eea;
+}
+
+.profile-picture-placeholder {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: #667eea;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60px;
+  font-weight: bold;
+  border: 4px solid #667eea;
+}
+
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upload-button {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #667eea;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+  font-weight: 500;
+}
+
+.upload-button:hover {
+  background: #5568d3;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  color: #555;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.form-group input:focus:not(.disabled-input) {
+  outline: none;
+  border-color: #667eea;
+}
+
+.form-group input.disabled-input {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.form-group small {
+  display: block;
+  margin-top: 5px;
+  color: #666;
+  font-size: 12px;
+}
+
+.submit-button {
+  padding: 12px 30px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: #5568d3;
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  border: 1px solid #fcc;
+}
+
+.success-message {
+  background: #efe;
+  color: #3c3;
+  padding: 12px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  border: 1px solid #cfc;
+}
+
+@media (max-width: 768px) {
+  .profile-main {
+    margin-left: 0;
+    padding: 20px;
+  }
+  
+  .profile-picture-section {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
