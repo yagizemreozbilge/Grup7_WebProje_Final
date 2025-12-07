@@ -1,5 +1,6 @@
 const validateEmail = (email) => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Must be a valid email format AND end with .edu
+  const emailRegex = /^[^\s@]+@[^\s@]+\.edu$/i;
   return emailRegex.test(email);
 };
 

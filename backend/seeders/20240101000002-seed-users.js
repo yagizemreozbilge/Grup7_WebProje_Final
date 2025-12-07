@@ -142,7 +142,7 @@ module.exports = {
     // Insert student records
     await queryInterface.bulkInsert('students', [
       {
-        id: 's1s1s1s1-s1s1-s1s1-s1s1-s1s1s1s1s1s1',
+        id: 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1',
         user_id: studentIds[0],
         student_number: 'STU001',
         department_id: '11111111-1111-1111-1111-111111111111',
@@ -152,7 +152,7 @@ module.exports = {
         updated_at: new Date()
       },
       {
-        id: 's2s2s2s2-s2s2-s2s2-s2s2-s2s2s2s2s2s2',
+        id: 'a2a2a2a2-a2a2-a2a2-a2a2-a2a2a2a2a2a2',
         user_id: studentIds[1],
         student_number: 'STU002',
         department_id: '11111111-1111-1111-1111-111111111111',
@@ -162,7 +162,7 @@ module.exports = {
         updated_at: new Date()
       },
       {
-        id: 's3s3s3s3-s3s3-s3s3-s3s3-s3s3s3s3s3s3',
+        id: 'a3a3a3a3-a3a3-a3a3-a3a3-a3a3a3a3a3a3',
         user_id: studentIds[2],
         student_number: 'STU003',
         department_id: '22222222-2222-2222-2222-222222222222',
@@ -172,7 +172,7 @@ module.exports = {
         updated_at: new Date()
       },
       {
-        id: 's4s4s4s4-s4s4-s4s4-s4s4-s4s4s4s4s4s4',
+        id: 'a4a4a4a4-a4a4-a4a4-a4a4-a4a4a4a4a4a4',
         user_id: studentIds[3],
         student_number: 'STU004',
         department_id: '33333333-3333-3333-3333-333333333333',
@@ -182,7 +182,7 @@ module.exports = {
         updated_at: new Date()
       },
       {
-        id: 's5s5s5s5-s5s5-s5s5-s5s5-s5s5s5s5s5s5',
+        id: 'a5a5a5a5-a5a5-a5a5-a5a5-a5a5a5a5a5a5',
         user_id: studentIds[4],
         student_number: 'STU005',
         department_id: '33333333-3333-3333-3333-333333333333',

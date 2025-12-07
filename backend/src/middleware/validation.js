@@ -5,41 +5,41 @@ const validateRegister = (req, res, next) => {
 
   // Email validation
   if (!email || !validateEmail(email)) {
-    return res.status(400).json({ error: 'Valid email is required' });
+    return res.status(400).json({ error: 'Geçerli bir e-posta adresi gereklidir (.edu uzantılı)' });
   }
 
   // Password validation
   if (!password || !validatePassword(password)) {
     return res.status(400).json({ 
-      error: 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number' 
+      error: 'Şifre en az 8 karakter uzunluğunda olmalı ve en az bir büyük harf, bir küçük harf ve bir rakam içermelidir' 
     });
   }
 
   // Role validation
   if (!role || !['student', 'faculty', 'admin'].includes(role)) {
-    return res.status(400).json({ error: 'Valid role is required (student, faculty, or admin)' });
+    return res.status(400).json({ error: 'Geçerli bir rol gereklidir (öğrenci, akademisyen veya yönetici)' });
   }
 
   // Student-specific validation
   if (role === 'student') {
     if (!student_number) {
-      return res.status(400).json({ error: 'Student number is required for students' });
+      return res.status(400).json({ error: 'Öğrenciler için öğrenci numarası gereklidir' });
     }
     if (!department_id) {
-      return res.status(400).json({ error: 'Department is required for students' });
+      return res.status(400).json({ error: 'Öğrenciler için bölüm gereklidir' });
     }
   }
 
   // Faculty-specific validation
   if (role === 'faculty') {
     if (!employee_number) {
-      return res.status(400).json({ error: 'Employee number is required for faculty' });
+      return res.status(400).json({ error: 'Akademisyenler için personel numarası gereklidir' });
     }
     if (!department_id) {
-      return res.status(400).json({ error: 'Department is required for faculty' });
+      return res.status(400).json({ error: 'Akademisyenler için bölüm gereklidir' });
     }
     if (!title) {
-      return res.status(400).json({ error: 'Title is required for faculty' });
+      return res.status(400).json({ error: 'Akademisyenler için ünvan gereklidir' });
     }
   }
 
@@ -50,11 +50,11 @@ const validateLogin = (req, res, next) => {
   const { email, password } = req.body;
 
   if (!email || !validateEmail(email)) {
-    return res.status(400).json({ error: 'Valid email is required' });
+    return res.status(400).json({ error: 'Geçerli bir e-posta adresi gereklidir (.edu uzantılı)' });
   }
 
   if (!password) {
-    return res.status(400).json({ error: 'Password is required' });
+    return res.status(400).json({ error: 'Şifre gereklidir' });
   }
 
   next();
@@ -64,7 +64,7 @@ const validateUpdateProfile = (req, res, next) => {
   const { phone } = req.body;
 
   if (phone && !validatePhone(phone)) {
-    return res.status(400).json({ error: 'Invalid phone number format' });
+    return res.status(400).json({ error: 'Geçersiz telefon numarası formatı' });
   }
 
   next();
@@ -75,7 +75,7 @@ const validateResetPassword = (req, res, next) => {
 
   if (!password || !validatePassword(password)) {
     return res.status(400).json({ 
-      error: 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number' 
+      error: 'Şifre en az 8 karakter uzunluğunda olmalı ve en az bir büyük harf, bir küçük harf ve bir rakam içermelidir' 
     });
   }
 
