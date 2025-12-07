@@ -66,8 +66,39 @@ Detaylı API dokümantasyonu için `API_DOCUMENTATION.md` dosyasına bakın.
 ## Test
 
 ```bash
+# Run all tests
 npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage (HTML raporu oluşturur)
+npm run test:coverage
 ```
+
+### Test Coverage
+
+Coverage raporunu görüntülemek için:
+
+1. **Coverage raporu oluştur:**
+   ```bash
+   npm run test:coverage
+   ```
+
+2. **HTML raporunu aç:**
+   - Windows: `start coverage/lcov-report/index.html`
+   - Mac/Linux: `open coverage/lcov-report/index.html`
+
+3. **Coverage detayları:**
+   - Terminal'de özet bilgi görünür
+   - HTML raporunda detaylı bilgi var
+   - Her dosya için satır satır coverage gösterilir
+
+**Test Coverage:**
+- Unit Tests: Auth service, User service
+- Integration Tests: Auth endpoints (10+ tests), User endpoints (5+ tests)
+- Minimum coverage: 85% (backend)
+- Detaylı rehber için `COVERAGE_GUIDE.md` dosyasına bakın
 
 ## Scripts
 
@@ -87,14 +118,29 @@ backend/
 ├── models/          # Sequelize models
 ├── seeders/         # Database seeders
 ├── src/
+│   ├── bin/         # Server entry point (www.js)
+│   ├── config/      # Configuration files
 │   ├── controllers/ # Route controllers
-│   ├── middleware/  # Custom middleware
-│   ├── routes/       # API routes
-│   ├── services/     # Business logic
-│   ├── utils/        # Utility functions
-│   └── app.js        # Express app
-└── tests/           # Test files
+│   ├── middleware/  # Custom middleware (auth, authorization, validation, upload, errorHandler)
+│   ├── routes/      # API routes
+│   ├── services/    # Business logic (authService, userService, emailService)
+│   ├── utils/       # Utility functions (jwt, validation)
+│   └── app.js       # Express app
+└── tests/           # Test files (unit, integration)
 ```
+
+## Teknolojiler
+
+- Node.js 18+ LTS
+- Express.js 4+
+- PostgreSQL 14+
+- Sequelize (ORM)
+- JWT (Authentication)
+- bcrypt (Password Hashing)
+- Multer (File Upload)
+- NodeMailer (Email)
+- Joi (Validation)
+- Jest + Supertest (Testing)
 
 ## Seed Users
 

@@ -9,40 +9,61 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import NotFound from './pages/NotFound';
 import './App.css';
 
 function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/verify-email/:token" element={<VerifyEmail />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </AuthProvider>
-    </Router>
-  );
+    return ( <
+        Router >
+        <
+        AuthProvider >
+        <
+        Routes >
+        <
+        Route path = "/login"
+        element = { < Login / > }
+        /> <
+        Route path = "/register"
+        element = { < Register / > }
+        /> <
+        Route path = "/verify-email/:token"
+        element = { < VerifyEmail / > }
+        /> <
+        Route path = "/forgot-password"
+        element = { < ForgotPassword / > }
+        /> <
+        Route path = "/reset-password/:token"
+        element = { < ResetPassword / > }
+        /> <
+        Route path = "/dashboard"
+        element = { <
+            ProtectedRoute >
+            <
+            Dashboard / >
+            <
+            /ProtectedRoute>
+        }
+        /> <
+        Route path = "/profile"
+        element = { <
+            ProtectedRoute >
+            <
+            Profile / >
+            <
+            /ProtectedRoute>
+        }
+        /> <
+        Route path = "/"
+        element = { < Navigate to = "/dashboard"
+            replace / > }
+        /> <
+        Route path = "*"
+        element = { < NotFound / > }
+        /> <
+        /Routes> <
+        /AuthProvider> <
+        /Router>
+    );
 }
 
 export default App;

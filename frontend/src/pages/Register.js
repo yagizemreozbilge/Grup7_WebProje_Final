@@ -1,265 +1,232 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import TextInput from '../components/TextInput';
+import Select from '../components/Select';
+import Checkbox from '../components/Checkbox';
 import './Register.css';
 
+const registerSchema = yup.object().shape({
+    email: yup.string().email('Invalid email format').required('Email is required'),
+    password: yup
+        .string()
+        .min(8, 'Password must be at least 8 characters')
+        .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
+        .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
+        .matches(/[0-9]/, 'Password must contain at least one number')
+        .required('Password is required'),
+    confirmPassword: yup
+        .string()
+        .oneOf([yup.ref('password')], 'Passwords must match')
+        .required('Please confirm your password'),
+    full_name: yup.string().required('Full name is required'),
+    role: yup.string().oneOf(['student', 'faculty'], 'Invalid role').required('Role is required'),
+    student_number: yup.string().when('role', {
+        is: 'student',
+        then: (schema) => schema.required('Student number is required'),
+        otherwise: (schema) => schema.notRequired()
+    }),
+    employee_number: yup.string().when('role', {
+        is: 'faculty',
+        then: (schema) => schema.required('Employee number is required'),
+        otherwise: (schema) => schema.notRequired()
+    }),
+    title: yup.string().when('role', {
+        is: 'faculty',
+        then: (schema) => schema.required('Title is required'),
+        otherwise: (schema) => schema.notRequired()
+    }),
+    department_id: yup.string().required('Department is required'),
+    terms: yup.boolean().oneOf([true], 'You must accept the terms and conditions')
+});
+
 const Register = () => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    full_name: '',
-    role: 'student',
-    student_number: '',
-    employee_number: '',
-    title: '',
-    department_id: ''
-  });
-  const [departments, setDepartments] = useState([]);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
-  const navigate = useNavigate();
+        const [departments, setDepartments] = useState([]);
+        const [error, setError] = useState('');
+        const [success, setSuccess] = useState('');
+        const [loading, setLoading] = useState(false);
+        const { register: registerUser } = useAuth();
+        const navigate = useNavigate();
 
-  React.useEffect(() => {
-    // Fetch departments
-    api.get('/departments').then(res => {
-      setDepartments(res.data);
-    }).catch(() => {
-      // If endpoint doesn't exist, use mock data
-      setDepartments([
-        { id: '1', name: 'Computer Engineering', code: 'CENG' },
-        { id: '2', name: 'Electrical Engineering', code: 'EE' },
-        { id: '3', name: 'Mathematics', code: 'MATH' }
-      ]);
-    });
-  }, []);
+        const { register, handleSubmit, watch, formState: { errors } } = useForm({
+            resolver: yupResolver(registerSchema),
+            defaultValues: {
+                role: 'student',
+                terms: false
+            }
+        });
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
+        const role = watch('role');
 
-  const validateForm = () => {
-    if (!formData.email || !formData.password || !formData.full_name) {
-      setError('Please fill in all required fields');
-      return false;
-    }
+        useEffect(() => {
+            // Fetch departments
+            api.get('/departments').then(res => {
+                setDepartments(res.data);
+            }).catch(() => {
+                // If endpoint doesn't exist, use mock data
+                setDepartments([
+                    { id: '1', name: 'Computer Engineering', code: 'CENG' },
+                    { id: '2', name: 'Electrical Engineering', code: 'EE' },
+                    { id: '3', name: 'Mathematics', code: 'MATH' }
+                ]);
+            });
+        }, []);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return false;
-    }
+        const onSubmit = async(data) => {
+            setError('');
+            setSuccess('');
+            setLoading(true);
 
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return false;
-    }
+            const userData = {
+                email: data.email,
+                password: data.password,
+                full_name: data.full_name,
+                role: data.role,
+                department_id: data.department_id
+            };
 
-    if (formData.role === 'student' && !formData.student_number) {
-      setError('Student number is required');
-      return false;
-    }
+            if (data.role === 'student') {
+                userData.student_number = data.student_number;
+            } else if (data.role === 'faculty') {
+                userData.employee_number = data.employee_number;
+                userData.title = data.title;
+            }
 
-    if (formData.role === 'faculty' && (!formData.employee_number || !formData.title)) {
-      setError('Employee number and title are required for faculty');
-      return false;
-    }
+            const result = await registerUser(userData);
 
-    if (!formData.department_id) {
-      setError('Department is required');
-      return false;
-    }
+            if (result.success) {
+                setSuccess(result.message || 'Registration successful! Please check your email for verification.');
+                setTimeout(() => {
+                    navigate('/login');
+                }, 3000);
+            } else {
+                setError(result.error);
+            }
 
-    return true;
-  };
+            setLoading(false);
+        };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+        const departmentOptions = [
+            { value: '', label: 'Select Department' },
+            ...departments.map(dept => ({
+                value: dept.id,
+                label: `${dept.name} (${dept.code})`
+            }))
+        ];
 
-    if (!validateForm()) {
-      return;
-    }
+        return ( <
+                div className = "register-container" >
+                <
+                div className = "register-card" >
+                <
+                h2 > Register < /h2> {
+                    error && < div className = "error-message" > { error } < /div>} {
+                        success && < div className = "success-message" > { success } < /div>} <
+                            form onSubmit = { handleSubmit(onSubmit) } >
+                            <
+                            TextInput
+                        label = "Full Name *"
+                        type = "text"
+                        id = "full_name" {...register('full_name') }
+                        error = { errors.full_name ? .message }
+                        disabled = { loading }
+                        /> <
+                        TextInput
+                        label = "Email *"
+                        type = "email"
+                        id = "email" {...register('email') }
+                        error = { errors.email ? .message }
+                        disabled = { loading }
+                        /> <
+                        TextInput
+                        label = "Password *"
+                        type = "password"
+                        id = "password" {...register('password') }
+                        error = { errors.password ? .message }
+                        disabled = { loading }
+                        /> <
+                        small style = {
+                                { display: 'block', marginTop: '-0.75rem', marginBottom: '1rem', color: '#666', fontSize: '0.875rem' } } >
+                            Min 8 characters, uppercase, lowercase, and number <
+                            /small> <
+                            TextInput
+                        label = "Confirm Password *"
+                        type = "password"
+                        id = "confirmPassword" {...register('confirmPassword') }
+                        error = { errors.confirmPassword ? .message }
+                        disabled = { loading }
+                        /> <
+                        Select
+                        label = "User Type *"
+                        id = "role" {...register('role') }
+                        error = { errors.role ? .message }
+                        disabled = { loading }
+                        options = {
+                            [
+                                { value: 'student', label: 'Student' },
+                                { value: 'faculty', label: 'Faculty' }
+                            ]
+                        }
+                        /> {
+                            role === 'student' && ( <
+                                TextInput label = "Student Number *"
+                                type = "text"
+                                id = "student_number" {...register('student_number') }
+                                error = { errors.student_number ? .message }
+                                disabled = { loading }
+                                />
+                            )
+                        } {
+                            role === 'faculty' && ( <
+                                >
+                                <
+                                TextInput label = "Employee Number *"
+                                type = "text"
+                                id = "employee_number" {...register('employee_number') }
+                                error = { errors.employee_number ? .message }
+                                disabled = { loading }
+                                /> <
+                                TextInput label = "Title *"
+                                type = "text"
+                                id = "title"
+                                placeholder = "e.g., Professor, Associate Professor" {...register('title') }
+                                error = { errors.title ? .message }
+                                disabled = { loading }
+                                /> <
+                                />
+                            )
+                        } <
+                        Select
+                        label = "Department *"
+                        id = "department_id" {...register('department_id') }
+                        error = { errors.department_id ? .message }
+                        disabled = { loading }
+                        options = { departmentOptions }
+                        /> <
+                        div className = "form-group" >
+                            <
+                            Checkbox
+                        label = "I accept the terms and conditions *"
+                        id = "terms" {...register('terms') }
+                        error = { errors.terms ? .message }
+                        disabled = { loading }
+                        /> <
+                        /div> <
+                        button type = "submit"
+                        className = "submit-button"
+                        disabled = { loading } > { loading ? 'Registering...' : 'Register' } <
+                            /button> <
+                            /form> <
+                            p className = "login-link" >
+                            Already have an account ? < Link to = "/login" > Login here < /Link> <
+                            /p> <
+                            /div> <
+                            /div>
+                    );
+                };
 
-    setLoading(true);
-
-    const userData = {
-      email: formData.email,
-      password: formData.password,
-      full_name: formData.full_name,
-      role: formData.role,
-      department_id: formData.department_id
-    };
-
-    if (formData.role === 'student') {
-      userData.student_number = formData.student_number;
-    } else if (formData.role === 'faculty') {
-      userData.employee_number = formData.employee_number;
-      userData.title = formData.title;
-    }
-
-    const result = await register(userData);
-    
-    if (result.success) {
-      setSuccess(result.message || 'Registration successful! Please check your email for verification.');
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
-    } else {
-      setError(result.error);
-    }
-    
-    setLoading(false);
-  };
-
-  return (
-    <div className="register-container">
-      <div className="register-card">
-        <h2>Register</h2>
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="full_name">Full Name *</label>
-            <input
-              type="text"
-              id="full_name"
-              name="full_name"
-              value={formData.full_name}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="email">Email *</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="password">Password *</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            />
-            <small>Min 8 characters, uppercase, lowercase, and number</small>
-          </div>
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password *</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="role">User Type *</label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            >
-              <option value="student">Student</option>
-              <option value="faculty">Faculty</option>
-            </select>
-          </div>
-          {formData.role === 'student' && (
-            <div className="form-group">
-              <label htmlFor="student_number">Student Number *</label>
-              <input
-                type="text"
-                id="student_number"
-                name="student_number"
-                value={formData.student_number}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              />
-            </div>
-          )}
-          {formData.role === 'faculty' && (
-            <>
-              <div className="form-group">
-                <label htmlFor="employee_number">Employee Number *</label>
-                <input
-                  type="text"
-                  id="employee_number"
-                  name="employee_number"
-                  value={formData.employee_number}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="title">Title *</label>
-                <input
-                  type="text"
-                  id="title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  placeholder="e.g., Professor, Associate Professor"
-                  required
-                  disabled={loading}
-                />
-              </div>
-            </>
-          )}
-          <div className="form-group">
-            <label htmlFor="department_id">Department *</label>
-            <select
-              id="department_id"
-              name="department_id"
-              value={formData.department_id}
-              onChange={handleChange}
-              required
-              disabled={loading}
-            >
-              <option value="">Select Department</option>
-              {departments.map(dept => (
-                <option key={dept.id} value={dept.id}>
-                  {dept.name} ({dept.code})
-                </option>
-              ))}
-            </select>
-          </div>
-          <button type="submit" className="submit-button" disabled={loading}>
-            {loading ? 'Registering...' : 'Register'}
-          </button>
-        </form>
-        <p className="login-link">
-          Already have an account? <Link to="/login">Login here</Link>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-export default Register;
-
+                export default Register;

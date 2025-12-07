@@ -1,85 +1,91 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
 import api from '../services/api';
+import TextInput from '../components/TextInput';
 import './ResetPassword.css';
 
+const resetPasswordSchema = yup.object().shape({
+    password: yup
+        .string()
+        .min(8, 'Password must be at least 8 characters')
+        .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
+        .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
+        .matches(/[0-9]/, 'Password must contain at least one number')
+        .required('Password is required'),
+    confirmPassword: yup
+        .string()
+        .oneOf([yup.ref('password')], 'Passwords must match')
+        .required('Please confirm your password')
+});
+
 const ResetPassword = () => {
-  const { token } = useParams();
-  const navigate = useNavigate();
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
+        const { token } = useParams();
+        const navigate = useNavigate();
+        const [error, setError] = useState('');
+        const [success, setSuccess] = useState('');
+        const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+        const { register, handleSubmit, formState: { errors } } = useForm({
+            resolver: yupResolver(resetPasswordSchema)
+        });
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+        const onSubmit = async(data) => {
+            setError('');
+            setSuccess('');
+            setLoading(true);
 
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
+            try {
+                await api.post(`/auth/reset-password/${token}`, { password: data.password });
+                setSuccess('Password reset successfully! Redirecting to login...');
+                setTimeout(() => {
+                    navigate('/login');
+                }, 2000);
+            } catch (err) {
+                setError(err.response ? .data ? .error || 'Failed to reset password');
+            }
 
-    setLoading(true);
+            setLoading(false);
+        };
 
-    try {
-      await api.post(`/auth/reset-password/${token}`, { password });
-      setSuccess('Password reset successfully! Redirecting to login...');
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
-    } catch (error) {
-      setError(error.response?.data?.error || 'Failed to reset password');
-    }
-    
-    setLoading(false);
-  };
+        return ( <
+                div className = "reset-password-container" >
+                <
+                div className = "reset-password-card" >
+                <
+                h2 > Reset Password < /h2> {
+                    error && < div className = "error-message" > { error } < /div>} {
+                        success && < div className = "success-message" > { success } < /div>} <
+                            form onSubmit = { handleSubmit(onSubmit) } >
+                            <
+                            TextInput
+                        label = "New Password"
+                        type = "password"
+                        id = "password" {...register('password') }
+                        error = { errors.password ? .message }
+                        disabled = { loading }
+                        /> <
+                        small style = {
+                                { display: 'block', marginTop: '-0.75rem', marginBottom: '1rem', color: '#666', fontSize: '0.875rem' } } >
+                            Min 8 characters, uppercase, lowercase, and number <
+                            /small> <
+                            TextInput
+                        label = "Confirm Password"
+                        type = "password"
+                        id = "confirmPassword" {...register('confirmPassword') }
+                        error = { errors.confirmPassword ? .message }
+                        disabled = { loading }
+                        /> <
+                        button type = "submit"
+                        className = "submit-button"
+                        disabled = { loading } > { loading ? 'Resetting...' : 'Reset Password' } <
+                            /button> <
+                            /form> <
+                            /div> <
+                            /div>
+                    );
+                };
 
-  return (
-    <div className="reset-password-container">
-      <div className="reset-password-card">
-        <h2>Reset Password</h2>
-        {error && <div className="error-message">{error}</div>}
-        {success && <div className="success-message">{success}</div>}
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="password">New Password</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-            <small>Min 8 characters, uppercase, lowercase, and number</small>
-          </div>
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-          <button type="submit" className="submit-button" disabled={loading}>
-            {loading ? 'Resetting...' : 'Reset Password'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export default ResetPassword;
-
+                export default ResetPassword;
