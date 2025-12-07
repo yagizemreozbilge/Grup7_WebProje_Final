@@ -6,31 +6,33 @@
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: #333;
+    color: #b0b0b0;
 }
 
 .select-input {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #ddd;
+    border: 1px solid #333;
     border-radius: 4px;
     font-size: 1rem;
-    background-color: white;
+    background-color: #252525;
+    color: white;
     transition: border-color 0.3s;
 }
 
 .select-input:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: #D32F2F;
 }
 
 .select-input.error {
-    border-color: #dc3545;
+    border-color: #ff6b6b;
 }
 
 .select-input:disabled {
-    background-color: #f5f5f5;
+    background-color: #2a2a2a;
     cursor: not-allowed;
+    color: #888;
 }
 
 .error-message {

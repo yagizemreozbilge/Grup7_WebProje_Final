@@ -11,37 +11,40 @@ import Checkbox from '../components/Checkbox';
 import './Register.css';
 
 const registerSchema = yup.object().shape({
-    email: yup.string().email('Invalid email format').required('Email is required'),
+    email: yup.string()
+        .email('Geçersiz e-posta formatı')
+        .matches(/@.*\.edu$/i, 'E-posta adresi .edu uzantılı olmalıdır')
+        .required('E-posta gereklidir'),
     password: yup
         .string()
-        .min(8, 'Password must be at least 8 characters')
-        .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
-        .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
-        .matches(/[0-9]/, 'Password must contain at least one number')
-        .required('Password is required'),
+        .min(8, 'Şifre en az 8 karakter olmalıdır')
+        .matches(/[A-Z]/, 'Şifre en az bir büyük harf içermelidir')
+        .matches(/[a-z]/, 'Şifre en az bir küçük harf içermelidir')
+        .matches(/[0-9]/, 'Şifre en az bir rakam içermelidir')
+        .required('Şifre gereklidir'),
     confirmPassword: yup
         .string()
-        .oneOf([yup.ref('password')], 'Passwords must match')
-        .required('Please confirm your password'),
-    full_name: yup.string().required('Full name is required'),
-    role: yup.string().oneOf(['student', 'faculty'], 'Invalid role').required('Role is required'),
+        .oneOf([yup.ref('password')], 'Şifreler eşleşmelidir')
+        .required('Lütfen şifrenizi onaylayın'),
+    full_name: yup.string().required('Ad soyad gereklidir'),
+    role: yup.string().oneOf(['student', 'faculty'], 'Geçersiz rol').required('Rol gereklidir'),
     student_number: yup.string().when('role', {
         is: 'student',
-        then: (schema) => schema.required('Student number is required'),
+        then: (schema) => schema.required('Öğrenci numarası gereklidir'),
         otherwise: (schema) => schema.notRequired()
     }),
     employee_number: yup.string().when('role', {
         is: 'faculty',
-        then: (schema) => schema.required('Employee number is required'),
+        then: (schema) => schema.required('Personel numarası gereklidir'),
         otherwise: (schema) => schema.notRequired()
     }),
     title: yup.string().when('role', {
         is: 'faculty',
-        then: (schema) => schema.required('Title is required'),
+        then: (schema) => schema.required('Ünvan gereklidir'),
         otherwise: (schema) => schema.notRequired()
     }),
-    department_id: yup.string().required('Department is required'),
-    terms: yup.boolean().oneOf([true], 'You must accept the terms and conditions')
+    department_id: yup.string().required('Bölüm gereklidir'),
+    terms: yup.boolean().oneOf([true], 'Şartlar ve koşulları kabul etmelisiniz')
 });
 
 const Register = () => {
@@ -69,9 +72,17 @@ const Register = () => {
             }).catch(() => {
                 // If endpoint doesn't exist, use mock data
                 setDepartments([
-                    { id: '1', name: 'Computer Engineering', code: 'CENG' },
-                    { id: '2', name: 'Electrical Engineering', code: 'EE' },
-                    { id: '3', name: 'Mathematics', code: 'MATH' }
+                    { id: '1', name: 'Bilgisayar Mühendisliği', code: 'CENG' },
+                    { id: '2', name: 'Elektrik-Elektronik Mühendisliği', code: 'EEE' },
+                    { id: '3', name: 'Matematik', code: 'MATH' },
+                    { id: '4', name: 'Makine Mühendisliği', code: 'ME' },
+                    { id: '5', name: 'İnşaat Mühendisliği', code: 'CE' },
+                    { id: '6', name: 'Endüstri Mühendisliği', code: 'IE' },
+                    { id: '7', name: 'Mimarlık', code: 'ARCH' },
+                    { id: '8', name: 'Tıp', code: 'MED' },
+                    { id: '9', name: 'Hukuk', code: 'LAW' },
+                    { id: '10', name: 'Psikoloji', code: 'PSY' },
+                    { id: '11', name: 'İşletme', code: 'BUS' }
                 ]);
             });
         }, []);
@@ -99,7 +110,7 @@ const Register = () => {
             const result = await registerUser(userData);
 
             if (result.success) {
-                setSuccess(result.message || 'Registration successful! Please check your email for verification.');
+                setSuccess(result.message || 'Kayıt başarılı! Lütfen doğrulama için e-postanızı kontrol edin.');
                 setTimeout(() => {
                     navigate('/login');
                 }, 3000);
@@ -111,121 +122,97 @@ const Register = () => {
         };
 
         const departmentOptions = [
-            { value: '', label: 'Select Department' },
+            { value: '', label: 'Bölüm Seçin' },
             ...departments.map(dept => ({
                 value: dept.id,
                 label: `${dept.name} (${dept.code})`
             }))
         ];
 
-        return ( <
-                div className = "register-container" >
-                <
-                div className = "register-card" >
-                <
-                h2 > Register < /h2> {
-                    error && < div className = "error-message" > { error } < /div>} {
-                        success && < div className = "success-message" > { success } < /div>} <
-                            form onSubmit = { handleSubmit(onSubmit) } >
-                            <
-                            TextInput
-                        label = "Full Name *"
+        return ( <div className = "register-container">
+                <div className = "register-card">
+                <h2> Kayıt Ol </h2> {
+                    error && <div className = "error-message"> { error } </div>} {
+                        success && <div className = "success-message"> { success } </div>} <form onSubmit = { handleSubmit(onSubmit) }>
+                            <TextInput
+                        label = "Ad Soyad *"
                         type = "text"
                         id = "full_name" {...register('full_name') }
-                        error = { errors.full_name ? .message }
+                        error = { errors.full_name ?.message }
                         disabled = { loading }
-                        /> <
-                        TextInput
-                        label = "Email *"
+                        /> <TextInput
+                        label = "E-posta *"
                         type = "email"
                         id = "email" {...register('email') }
-                        error = { errors.email ? .message }
+                        error = { errors.email ?.message }
                         disabled = { loading }
-                        /> <
-                        TextInput
-                        label = "Password *"
+                        spellCheck="false"
+                        autoComplete="email"
+                        /> <TextInput
+                        label = "Şifre *"
                         type = "password"
                         id = "password" {...register('password') }
-                        error = { errors.password ? .message }
+                        error = { errors.password ?.message }
                         disabled = { loading }
-                        /> <
-                        small style = {
-                                { display: 'block', marginTop: '-0.75rem', marginBottom: '1rem', color: '#666', fontSize: '0.875rem' } } >
-                            Min 8 characters, uppercase, lowercase, and number <
-                            /small> <
-                            TextInput
-                        label = "Confirm Password *"
+                        /> <small style = {
+                                { display: 'block', marginTop: '-0.75rem', marginBottom: '1rem', color: '#666', fontSize: '0.875rem' } }>
+                            Min 8 karakter, büyük harf, küçük harf ve rakam </small> <TextInput
+                        label = "Şifreyi Onayla *"
                         type = "password"
                         id = "confirmPassword" {...register('confirmPassword') }
-                        error = { errors.confirmPassword ? .message }
+                        error = { errors.confirmPassword ?.message }
                         disabled = { loading }
-                        /> <
-                        Select
-                        label = "User Type *"
+                        /> <Select
+                        label = "Kullanıcı Tipi *"
                         id = "role" {...register('role') }
-                        error = { errors.role ? .message }
+                        error = { errors.role ?.message }
                         disabled = { loading }
                         options = {
                             [
-                                { value: 'student', label: 'Student' },
-                                { value: 'faculty', label: 'Faculty' }
+                                { value: 'student', label: 'Öğrenci' },
+                                { value: 'faculty', label: 'Akademisyen' }
                             ]
                         }
                         /> {
-                            role === 'student' && ( <
-                                TextInput label = "Student Number *"
+                            role === 'student' && ( <TextInput label = "Öğrenci Numarası *"
                                 type = "text"
                                 id = "student_number" {...register('student_number') }
-                                error = { errors.student_number ? .message }
+                                error = { errors.student_number ?.message }
                                 disabled = { loading }
                                 />
                             )
                         } {
                             role === 'faculty' && ( <
                                 >
-                                <
-                                TextInput label = "Employee Number *"
+                                <TextInput label = "Personel Numarası *"
                                 type = "text"
                                 id = "employee_number" {...register('employee_number') }
-                                error = { errors.employee_number ? .message }
+                                error = { errors.employee_number ?.message }
                                 disabled = { loading }
-                                /> <
-                                TextInput label = "Title *"
+                                /> <TextInput label = "Ünvan *"
                                 type = "text"
                                 id = "title"
-                                placeholder = "e.g., Professor, Associate Professor" {...register('title') }
-                                error = { errors.title ? .message }
+                                placeholder = "örn. Profesör, Doçent" {...register('title') }
+                                error = { errors.title ?.message }
                                 disabled = { loading }
-                                /> <
-                                />
+                                /> </>
                             )
-                        } <
-                        Select
-                        label = "Department *"
+                        } <Select
+                        label = "Bölüm *"
                         id = "department_id" {...register('department_id') }
-                        error = { errors.department_id ? .message }
+                        error = { errors.department_id ?.message }
                         disabled = { loading }
                         options = { departmentOptions }
-                        /> <
-                        div className = "form-group" >
-                            <
-                            Checkbox
-                        label = "I accept the terms and conditions *"
+                        /> <div className = "form-group">
+                            <Checkbox
+                        label = "Şartlar ve koşulları kabul ediyorum *"
                         id = "terms" {...register('terms') }
-                        error = { errors.terms ? .message }
+                        error = { errors.terms ?.message }
                         disabled = { loading }
-                        /> <
-                        /div> <
-                        button type = "submit"
+                        /> </div> <button type = "submit"
                         className = "submit-button"
-                        disabled = { loading } > { loading ? 'Registering...' : 'Register' } <
-                            /button> <
-                            /form> <
-                            p className = "login-link" >
-                            Already have an account ? < Link to = "/login" > Login here < /Link> <
-                            /p> <
-                            /div> <
-                            /div>
+                        disabled = { loading }> { loading ? 'Kaydediliyor...' : 'Kayıt Ol' } </button> </form> <p className = "login-link">
+                            Zaten hesabınız var mı? <Link to = "/login"> Giriş yap </Link> </p> </div> </div>
                     );
                 };
 

@@ -10,13 +10,13 @@ import TextInput from '../components/TextInput';
 import './Profile.css';
 
 const profileSchema = yup.object().shape({
-    full_name: yup.string().required('Full name is required'),
-    phone: yup.string().matches(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format')
+    full_name: yup.string().required('Ad soyad gereklidir'),
+    phone: yup.string().matches(/^\+?[0-9]\d{9,14}$/, 'Geçersiz telefon numarası formatı')
 });
 
 const Profile = () => {
         const { user, updateUser } = useAuth();
-        const [profilePicture, setProfilePicture] = useState(user ? .profile_picture_url || '');
+        const [profilePicture, setProfilePicture] = useState(user ?.profile_picture_url || '');
         const [error, setError] = useState('');
         const [success, setSuccess] = useState('');
         const [loading, setLoading] = useState(false);
@@ -25,8 +25,8 @@ const Profile = () => {
         const { register, handleSubmit, formState: { errors }, reset } = useForm({
             resolver: yupResolver(profileSchema),
             defaultValues: {
-                full_name: user ? .full_name || '',
-                phone: user ? .phone || ''
+                full_name: user ?.full_name || '',
+                phone: user ?.phone || ''
             }
         });
 
@@ -48,9 +48,9 @@ const Profile = () => {
             try {
                 const response = await api.put('/users/me', data);
                 updateUser(response.data.user);
-                setSuccess('Profile updated successfully!');
+                setSuccess('Profil başarıyla güncellendi!');
             } catch (err) {
-                setError(err.response ? .data ? .error || 'Failed to update profile');
+                setError(err.response ?.data ?.error || 'Profil güncellenemedi');
             }
 
             setLoading(false);
@@ -60,13 +60,13 @@ const Profile = () => {
             const file = e.target.files[0];
             if (!file) return;
 
-            if (file.size > 5 * 1024 * 1024) {
-                setError('File size must be less than 5MB');
+            if (file.size> 5 * 1024 * 1024) {
+                setError('Dosya boyutu 5MB\'dan küçük olmalıdır');
                 return;
             }
 
             if (!file.type.match('image/jpeg|image/jpg|image/png')) {
-                setError('Only JPEG, JPG, and PNG images are allowed');
+                setError('Sadece JPEG, JPG ve PNG resimlerine izin verilir');
                 return;
             }
 
@@ -84,50 +84,40 @@ const Profile = () => {
                 });
                 setProfilePicture(response.data.profilePictureUrl);
                 updateUser({...user, profile_picture_url: response.data.profilePictureUrl });
-                setSuccess('Profile picture uploaded successfully!');
+                setSuccess('Profil resmi başarıyla yüklendi!');
             } catch (error) {
-                setError(error.response ? .data ? .error || 'Failed to upload profile picture');
+                setError(error.response ?.data ?.error || 'Profil resmi yüklenemedi');
             }
 
             setUploading(false);
         };
 
-        return ( <
-                div className = "profile-container" >
-                <
-                Navbar / >
-                <
-                div className = "profile-content" >
-                <
-                Sidebar / >
-                <
-                main className = "profile-main" >
-                <
-                h1 > Profile < /h1> {
-                    error && < div className = "error-message" > { error } < /div>} {
-                        success && < div className = "success-message" > { success } < /div>}
+        const getInitials = (name) => {
+            if (!name) return 'U';
+            const parts = name.trim().split(/\s+/);
+            if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+            return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+        };
 
-                        <
-                        div className = "profile-section" >
-                            <
-                            h2 > Profile Picture < /h2> <
-                            div className = "profile-picture-section" > {
-                                profilePicture ? ( <
-                                    img src = { `http://localhost:5000${profilePicture}` }
+        return ( <div className = "profile-container">
+                <Navbar />
+                <div className = "profile-content">
+                <Sidebar />
+                <main className = "profile-main">
+                <h1> Profil </h1> {
+                    error && <div className = "error-message"> { error } </div>} {
+                        success && <div className = "success-message"> { success } </div>}
+
+                        <div className = "profile-section">
+                            <h2> Profil Resmi </h2> <div className = "profile-picture-section"> {
+                                profilePicture ? ( <img src = { `http://localhost:5000${profilePicture}` }
                                     alt = "Profile"
-                                    className = "profile-picture" /
-                                    >
-                                ) : ( <
-                                    div className = "profile-picture-placeholder" > { user ? .full_name ? .charAt(0) || user ? .email ? .charAt(0) || 'U' } <
-                                    /div>
+                                    className = "profile-picture" />
+                                ) : ( <div className = "profile-picture-placeholder"> { getInitials(user?.full_name || user?.email) } </div>
                                 )
-                            } <
-                            div className = "upload-section" >
-                            <
-                            label htmlFor = "profile-picture-upload"
-                        className = "upload-button" > { uploading ? 'Uploading...' : 'Upload Picture' } <
-                            /label> <
-                            input
+                            } <div className = "upload-section">
+                            <label htmlFor = "profile-picture-upload"
+                        className = "upload-button"> { uploading ? 'Yükleniyor...' : 'Resim Yükle' } </label> <input
                         type = "file"
                         id = "profile-picture-upload"
                         accept = "image/jpeg,image/jpg,image/png"
@@ -135,89 +125,52 @@ const Profile = () => {
                         disabled = { uploading }
                         style = {
                             { display: 'none' } }
-                        /> <
-                        small > Max 5 MB, JPG / PNG only < /small> <
-                            /div> <
-                            /div> <
-                            /div>
+                        /> <small> Maks 5 MB, sadece JPG / PNG </small> </div> </div> </div>
 
-                        <
-                        div className = "profile-section" >
-                            <
-                            h2 > Personal Information < /h2> <
-                            form onSubmit = { handleSubmit(onSubmit) } >
-                            <
-                            div className = "form-group" >
-                            <
-                            label htmlFor = "email" > Email < /label> <
-                            input
+                        <div className = "profile-section">
+                            <h2> Kişisel Bilgiler </h2> <form onSubmit = { handleSubmit(onSubmit) }>
+                            <div className = "form-group">
+                            <label htmlFor = "email"> E-posta </label> <input
                         type = "email"
                         id = "email"
-                        value = { user ? .email || '' }
+                        value = { user ?.email || '' }
                         disabled
-                        className = "disabled-input" /
-                            >
-                            <
-                            small > Email cannot be changed < /small> <
-                            /div> <
-                            TextInput
-                        label = "Full Name"
+                        className = "disabled-input" />
+                            <small> E-posta değiştirilemez </small> </div> <TextInput
+                        label = "Ad Soyad"
                         type = "text"
                         id = "full_name" {...register('full_name') }
-                        error = { errors.full_name ? .message }
+                        error = { errors.full_name ?.message }
                         disabled = { loading }
-                        /> <
-                        TextInput
-                        label = "Phone"
+                        /> <TextInput
+                        label = "Telefon"
                         type = "tel"
                         id = "phone" {...register('phone') }
-                        error = { errors.phone ? .message }
+                        error = { errors.phone ?.message }
                         disabled = { loading }
-                        /> <
-                        div className = "form-group" >
-                            <
-                            label > Role < /label> <
-                            input
+                        /> <div className = "form-group">
+                            <label> Rol </label> <input
                         type = "text"
-                        value = { user ? .role || '' }
+                        value = { user ?.role || '' }
                         disabled
-                        className = "disabled-input" /
-                            >
-                            <
-                            /div> {
-                                user ? .student && ( <
-                                    div className = "form-group" >
-                                    <
-                                    label > Student Number < /label> <
-                                    input type = "text"
+                        className = "disabled-input" />
+                            </div> {
+                                user ?.student && ( <div className = "form-group">
+                                    <label> Öğrenci Numarası </label> <input type = "text"
                                     value = { user.student.student_number || '' }
-                                    disabled className = "disabled-input" /
-                                    >
-                                    <
-                                    /div>
+                                    disabled className = "disabled-input" />
+                                    </div>
                                 )
                             } {
-                                user ? .faculty && ( <
-                                    div className = "form-group" >
-                                    <
-                                    label > Employee Number < /label> <
-                                    input type = "text"
+                                user ?.faculty && ( <div className = "form-group">
+                                    <label> Personel Numarası </label> <input type = "text"
                                     value = { user.faculty.employee_number || '' }
-                                    disabled className = "disabled-input" /
-                                    >
-                                    <
-                                    /div>
+                                    disabled className = "disabled-input" />
+                                    </div>
                                 )
-                            } <
-                            button type = "submit"
+                            } <button type = "submit"
                         className = "submit-button"
-                        disabled = { loading } > { loading ? 'Saving...' : 'Save Changes' } <
-                            /button> <
-                            /form> <
-                            /div> <
-                            /main> <
-                            /div> <
-                            /div>
+                        disabled = { loading }> { loading ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet' } </button> </form> </div> </main> </div> </div>
                     );
                 };
 

@@ -17,9 +17,9 @@ const ForgotPassword = () => {
 
     try {
       await api.post('/auth/forgot-password', { email });
-      setSuccess('If an account with that email exists, a password reset link has been sent.');
+      setSuccess('Eğer bu e-posta ile kayıtlı bir hesap varsa, şifre sıfırlama bağlantısı gönderildi.');
     } catch (error) {
-      setError(error.response?.data?.error || 'Failed to send reset email');
+      setError(error.response?.data?.error || 'Sıfırlama e-postası gönderilemedi');
     }
     
     setLoading(false);
@@ -28,13 +28,13 @@ const ForgotPassword = () => {
   return (
     <div className="forgot-password-container">
       <div className="forgot-password-card">
-        <h2>Forgot Password</h2>
-        <p>Enter your email address and we'll send you a link to reset your password.</p>
+        <h2>Şifremi Unuttum</h2>
+        <p>E-posta adresinizi girin, size şifrenizi sıfırlamanız için bir bağlantı gönderelim.</p>
         {error && <div className="error-message">{error}</div>}
         {success && <div className="success-message">{success}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">E-posta</label>
             <input
               type="email"
               id="email"
@@ -45,11 +45,11 @@ const ForgotPassword = () => {
             />
           </div>
           <button type="submit" className="submit-button" disabled={loading}>
-            {loading ? 'Sending...' : 'Send Reset Link'}
+            {loading ? 'Gönderiliyor...' : 'Sıfırlama Bağlantısı Gönder'}
           </button>
         </form>
         <p className="login-link">
-          Remember your password? <Link to="/login">Login here</Link>
+          Şifrenizi hatırladınız mı? <Link to="/login">Giriş yap</Link>
         </p>
       </div>
     </div>

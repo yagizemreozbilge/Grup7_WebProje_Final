@@ -9,8 +9,8 @@ import Checkbox from '../components/Checkbox';
 import './Login.css';
 
 const loginSchema = yup.object().shape({
-    email: yup.string().email('Invalid email format').required('Email is required'),
-    password: yup.string().required('Password is required'),
+    email: yup.string().email('Geçersiz e-posta formatı').required('E-posta gereklidir'),
+    password: yup.string().required('Şifre gereklidir'),
     rememberMe: yup.boolean()
 });
 
@@ -46,55 +46,37 @@ const Login = () => {
             setLoading(false);
         };
 
-        return ( <
-            div className = "login-container" >
-            <
-            div className = "login-card" >
-            <
-            h2 > Login < /h2> {
-                error && < div className = "error-message" > { error } < /div>} <
-                    form onSubmit = { handleSubmit(onSubmit) } >
-                    <
-                    TextInput
-                label = "Email"
+        return ( <div className = "login-container">
+            <div className = "login-card">
+            <h2> Giriş Yap </h2> {
+                error && <div className = "error-message"> { error } </div>} <form onSubmit = { handleSubmit(onSubmit) }>
+                    <TextInput
+                label = "E-posta"
                 type = "email"
                 id = "email" {...register('email') }
-                error = { errors.email ? .message }
+                error = { errors.email ?.message }
                 disabled = { loading }
-                /> <
-                TextInput
-                label = "Password"
+                spellCheck="false"
+                autoComplete="email"
+                /> <TextInput
+                label = "Şifre"
                 type = "password"
                 id = "password" {...register('password') }
-                error = { errors.password ? .message }
+                error = { errors.password ?.message }
                 disabled = { loading }
-                /> <
-                div className = "form-group" >
-                    <
-                    Checkbox
-                label = "Remember me"
+                /> <div className = "form-group">
+                    <Checkbox
+                label = "Beni hatırla"
                 id = "rememberMe" {...register('rememberMe') }
                 disabled = { loading }
-                /> <
-                /div> <
-                div className = "form-group" >
-                    <
-                    Link to = "/forgot-password"
-                className = "forgot-password-link" >
-                    Forgot password ?
-                    <
-                    /Link> <
-                    /div> <
-                    button type = "submit"
+                /> </div> <div className = "form-group">
+                    <Link to = "/forgot-password"
+                className = "forgot-password-link">
+                    Şifremi unuttum?
+                    </Link> </div> <button type = "submit"
                 className = "submit-button"
-                disabled = { loading } > { loading ? 'Logging in...' : 'Login' } <
-                    /button> <
-                    /form> <
-                    p className = "register-link" >
-                    Don 't have an account? <Link to="/register">Register here</Link> <
-                    /p> <
-                    /div> <
-                    /div>
+                disabled = { loading }> { loading ? 'Giriş yapılıyor...' : 'Giriş Yap' } </button> </form> <p className = "register-link">
+                    Hesabınız yok mu? <Link to="/register">Kayıt ol</Link> </p> </div> </div>
             );
         };
 

@@ -15,14 +15,14 @@ const Sidebar = () => {
     <aside className="sidebar">
       <nav className="sidebar-nav">
         <Link to="/dashboard" className={`sidebar-link ${isActive('/dashboard')}`}>
-          Dashboard
+          Ana Sayfa
         </Link>
         <Link to="/profile" className={`sidebar-link ${isActive('/profile')}`}>
-          Profile
+          Profil
         </Link>
         {user?.role === 'admin' && (
           <Link to="/users" className={`sidebar-link ${isActive('/users')}`}>
-            Users
+            Kullanıcılar
           </Link>
         )}
       </nav>

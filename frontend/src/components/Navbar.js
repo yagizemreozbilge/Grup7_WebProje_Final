@@ -12,17 +12,22 @@ const Navbar = () => {
     navigate('/login');
   };
 
+  const formatName = (name) => {
+    if (!name) return '';
+    return name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
+  };
+
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <h2>Campus Management System</h2>
+        <h2>Kampüs Yönetim Sistemi</h2>
       </div>
       <div className="navbar-menu">
         {user && (
           <>
-            <span className="user-name">{user.full_name || user.email}</span>
+            <span className="user-name">{formatName(user.full_name) || user.email}</span>
             <button onClick={handleLogout} className="logout-button">
-              Logout
+              Çıkış Yap
             </button>
           </>
         )}

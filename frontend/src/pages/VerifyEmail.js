@@ -14,13 +14,13 @@ const VerifyEmail = () => {
       try {
         await api.post(`/auth/verify-email/${token}`);
         setStatus('success');
-        setMessage('Email verified successfully! Redirecting to login...');
+        setMessage('E-posta başarıyla doğrulandı! Giriş sayfasına yönlendiriliyorsunuz...');
         setTimeout(() => {
           navigate('/login');
         }, 3000);
       } catch (error) {
         setStatus('error');
-        setMessage(error.response?.data?.error || 'Verification failed. The link may be invalid or expired.');
+        setMessage(error.response?.data?.error || 'Doğrulama başarısız. Bağlantı geçersiz veya süresi dolmuş olabilir.');
       }
     };
 
@@ -35,23 +35,23 @@ const VerifyEmail = () => {
         {status === 'verifying' && (
           <>
             <div className="spinner"></div>
-            <h2>Verifying your email...</h2>
+            <h2>E-postanız doğrulanıyor...</h2>
           </>
         )}
         {status === 'success' && (
           <>
             <div className="success-icon">✓</div>
-            <h2>Email Verified!</h2>
+            <h2>E-posta Doğrulandı!</h2>
             <p>{message}</p>
           </>
         )}
         {status === 'error' && (
           <>
             <div className="error-icon">✗</div>
-            <h2>Verification Failed</h2>
+            <h2>Doğrulama Başarısız</h2>
             <p>{message}</p>
             <button onClick={() => navigate('/login')} className="back-button">
-              Go to Login
+              Giriş Sayfasına Git
             </button>
           </>
         )}
