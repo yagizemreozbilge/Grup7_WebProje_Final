@@ -1,0 +1,32 @@
+============================================
+    VERITABANI BAGLANTI BILGILERI
+============================================
+
+HOST        : localhost
+PORT        : 5432
+DATABASE    : campus_db
+USERNAME    : admin
+PASSWORD    : password
+
+============================================
+    CONNECTION STRING
+============================================
+
+postgresql://admin:password@localhost:5432/campus_db
+
+============================================
+    DOCKER KOMUTU
+============================================
+
+docker exec -it campus_postgres psql -U admin -d campus_db
+
+============================================
+    TEST KULLANICILARI (Sifre: Password123)
+============================================
+
+Admin   : admin@campus.edu
+Faculty : prof.smith@campus.edu
+Student : student1@campus.edu
+
+============================================
+

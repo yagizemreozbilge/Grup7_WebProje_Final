@@ -42,6 +42,16 @@ module.exports = (sequelize, DataTypes) => {
                 key: 'id'
             }
         },
+        admission_year: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            defaultValue: new Date().getFullYear()
+        },
+        current_semester: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            defaultValue: 1
+        },
         gpa: {
             type: DataTypes.DECIMAL(3, 2),
             allowNull: true,
@@ -51,6 +61,16 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.DECIMAL(3, 2),
             allowNull: true,
             defaultValue: 0.00
+        },
+        total_credits: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            defaultValue: 0
+        },
+        enrollment_status: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: 'active'
         }
     }, {
         sequelize,
