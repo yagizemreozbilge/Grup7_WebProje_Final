@@ -45,188 +45,192 @@ const registerSchema = yup.object().shape({
 });
 
 const Register = () => {
-        const [departments, setDepartments] = useState([]);
-        const [error, setError] = useState('');
-        const [success, setSuccess] = useState('');
-        const [loading, setLoading] = useState(false);
-        const { register: registerUser } = useAuth();
-        const navigate = useNavigate();
+    const [departments, setDepartments] = useState([]);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [loading, setLoading] = useState(false);
+    const { register: registerUser } = useAuth();
+    const navigate = useNavigate();
 
-        const { register, handleSubmit, watch, formState: { errors } } = useForm({
-            resolver: yupResolver(registerSchema),
-            defaultValues: {
-                role: 'student',
-                terms: false
-            }
+    const { register, handleSubmit, watch, formState: { errors } } = useForm({
+        resolver: yupResolver(registerSchema),
+        defaultValues: {
+            role: 'student',
+            terms: false
+        }
+    });
+
+    const role = watch('role');
+
+    useEffect(() => {
+        api.get('/departments').then(res => {
+            setDepartments(res.data);
+        }).catch(() => {
+            setDepartments([
+                { id: '1', name: 'Computer Engineering', code: 'CENG' },
+                { id: '2', name: 'Electrical Engineering', code: 'EE' },
+                { id: '3', name: 'Mathematics', code: 'MATH' }
+            ]);
         });
+    }, []);
 
-        const role = watch('role');
+    const onSubmit = async (data) => {
+        setError('');
+        setSuccess('');
+        setLoading(true);
 
-        useEffect(() => {
-            // Fetch departments
-            api.get('/departments').then(res => {
-                setDepartments(res.data);
-            }).catch(() => {
-                // If endpoint doesn't exist, use mock data
-                setDepartments([
-                    { id: '1', name: 'Computer Engineering', code: 'CENG' },
-                    { id: '2', name: 'Electrical Engineering', code: 'EE' },
-                    { id: '3', name: 'Mathematics', code: 'MATH' }
-                ]);
-            });
-        }, []);
-
-        const onSubmit = async(data) => {
-            setError('');
-            setSuccess('');
-            setLoading(true);
-
-            const userData = {
-                email: data.email,
-                password: data.password,
-                full_name: data.full_name,
-                role: data.role,
-                department_id: data.department_id
-            };
-
-            if (data.role === 'student') {
-                userData.student_number = data.student_number;
-            } else if (data.role === 'faculty') {
-                userData.employee_number = data.employee_number;
-                userData.title = data.title;
-            }
-
-            const result = await registerUser(userData);
-
-            if (result.success) {
-                setSuccess(result.message || 'Registration successful! Please check your email for verification.');
-                setTimeout(() => {
-                    navigate('/login');
-                }, 3000);
-            } else {
-                setError(result.error);
-            }
-
-            setLoading(false);
+        const userData = {
+            email: data.email,
+            password: data.password,
+            full_name: data.full_name,
+            role: data.role,
+            department_id: data.department_id
         };
 
-        const departmentOptions = [
-            { value: '', label: 'Select Department' },
-            ...departments.map(dept => ({
-                value: dept.id,
-                label: `${dept.name} (${dept.code})`
-            }))
-        ];
+        if (data.role === 'student') {
+            userData.student_number = data.student_number;
+        } else if (data.role === 'faculty') {
+            userData.employee_number = data.employee_number;
+            userData.title = data.title;
+        }
 
-        return ( <
-                div className = "register-container" >
-                <
-                div className = "register-card" >
-                <
-                h2 > Register < /h2> {
-                    error && < div className = "error-message" > { error } < /div>} {
-                        success && < div className = "success-message" > { success } < /div>} <
-                            form onSubmit = { handleSubmit(onSubmit) } >
-                            <
-                            TextInput
-                        label = "Full Name *"
-                        type = "text"
-                        id = "full_name" {...register('full_name') }
-                        error = { errors.full_name ? .message }
-                        disabled = { loading }
-                        /> <
-                        TextInput
-                        label = "Email *"
-                        type = "email"
-                        id = "email" {...register('email') }
-                        error = { errors.email ? .message }
-                        disabled = { loading }
-                        /> <
-                        TextInput
-                        label = "Password *"
-                        type = "password"
-                        id = "password" {...register('password') }
-                        error = { errors.password ? .message }
-                        disabled = { loading }
-                        /> <
-                        small style = {
-                                { display: 'block', marginTop: '-0.75rem', marginBottom: '1rem', color: '#666', fontSize: '0.875rem' } } >
-                            Min 8 characters, uppercase, lowercase, and number <
-                            /small> <
-                            TextInput
-                        label = "Confirm Password *"
-                        type = "password"
-                        id = "confirmPassword" {...register('confirmPassword') }
-                        error = { errors.confirmPassword ? .message }
-                        disabled = { loading }
-                        /> <
-                        Select
-                        label = "User Type *"
-                        id = "role" {...register('role') }
-                        error = { errors.role ? .message }
-                        disabled = { loading }
-                        options = {
-                            [
-                                { value: 'student', label: 'Student' },
-                                { value: 'faculty', label: 'Faculty' }
-                            ]
-                        }
-                        /> {
-                            role === 'student' && ( <
-                                TextInput label = "Student Number *"
-                                type = "text"
-                                id = "student_number" {...register('student_number') }
-                                error = { errors.student_number ? .message }
-                                disabled = { loading }
-                                />
-                            )
-                        } {
-                            role === 'faculty' && ( <
-                                >
-                                <
-                                TextInput label = "Employee Number *"
-                                type = "text"
-                                id = "employee_number" {...register('employee_number') }
-                                error = { errors.employee_number ? .message }
-                                disabled = { loading }
-                                /> <
-                                TextInput label = "Title *"
-                                type = "text"
-                                id = "title"
-                                placeholder = "e.g., Professor, Associate Professor" {...register('title') }
-                                error = { errors.title ? .message }
-                                disabled = { loading }
-                                /> <
-                                />
-                            )
-                        } <
-                        Select
-                        label = "Department *"
-                        id = "department_id" {...register('department_id') }
-                        error = { errors.department_id ? .message }
-                        disabled = { loading }
-                        options = { departmentOptions }
-                        /> <
-                        div className = "form-group" >
-                            <
-                            Checkbox
-                        label = "I accept the terms and conditions *"
-                        id = "terms" {...register('terms') }
-                        error = { errors.terms ? .message }
-                        disabled = { loading }
-                        /> <
-                        /div> <
-                        button type = "submit"
-                        className = "submit-button"
-                        disabled = { loading } > { loading ? 'Registering...' : 'Register' } <
-                            /button> <
-                            /form> <
-                            p className = "login-link" >
-                            Already have an account ? < Link to = "/login" > Login here < /Link> <
-                            /p> <
-                            /div> <
-                            /div>
-                    );
-                };
+        const result = await registerUser(userData);
 
-                export default Register;
+        if (result.success) {
+            setSuccess(result.message || 'Registration successful! Please check your email for verification.');
+            setTimeout(() => {
+                navigate('/login');
+            }, 3000);
+        } else {
+            setError(result.error);
+        }
+
+        setLoading(false);
+    };
+
+    const departmentOptions = [
+        { value: '', label: 'Select Department' },
+        ...departments.map(dept => ({
+            value: dept.id,
+            label: `${dept.name} (${dept.code})`
+        }))
+    ];
+
+    return (
+        <div className="register-container">
+            <div className="register-card">
+                <h2>Register</h2>
+                {error && <div className="error-message">{error}</div>}
+                {success && <div className="success-message">{success}</div>}
+                <form onSubmit={handleSubmit(onSubmit)}>
+                    <TextInput
+                        label="Full Name *"
+                        type="text"
+                        id="full_name"
+                        {...register('full_name')}
+                        error={errors.full_name?.message}
+                        disabled={loading}
+                    />
+                    <TextInput
+                        label="Email *"
+                        type="email"
+                        id="email"
+                        {...register('email')}
+                        error={errors.email?.message}
+                        disabled={loading}
+                    />
+                    <TextInput
+                        label="Password *"
+                        type="password"
+                        id="password"
+                        {...register('password')}
+                        error={errors.password?.message}
+                        disabled={loading}
+                    />
+                    <small style={{ display: 'block', marginTop: '-0.75rem', marginBottom: '1rem', color: '#666', fontSize: '0.875rem' }}>
+                        Min 8 characters, uppercase, lowercase, and number
+                    </small>
+                    <TextInput
+                        label="Confirm Password *"
+                        type="password"
+                        id="confirmPassword"
+                        {...register('confirmPassword')}
+                        error={errors.confirmPassword?.message}
+                        disabled={loading}
+                    />
+                    <Select
+                        label="User Type *"
+                        id="role"
+                        {...register('role')}
+                        error={errors.role?.message}
+                        disabled={loading}
+                        options={[
+                            { value: 'student', label: 'Student' },
+                            { value: 'faculty', label: 'Faculty' }
+                        ]}
+                    />
+                    {role === 'student' && (
+                        <TextInput
+                            label="Student Number *"
+                            type="text"
+                            id="student_number"
+                            {...register('student_number')}
+                            error={errors.student_number?.message}
+                            disabled={loading}
+                        />
+                    )}
+                    {role === 'faculty' && (
+                        <>
+                            <TextInput
+                                label="Employee Number *"
+                                type="text"
+                                id="employee_number"
+                                {...register('employee_number')}
+                                error={errors.employee_number?.message}
+                                disabled={loading}
+                            />
+                            <TextInput
+                                label="Title *"
+                                type="text"
+                                id="title"
+                                placeholder="e.g., Professor, Associate Professor"
+                                {...register('title')}
+                                error={errors.title?.message}
+                                disabled={loading}
+                            />
+                        </>
+                    )}
+                    <Select
+                        label="Department *"
+                        id="department_id"
+                        {...register('department_id')}
+                        error={errors.department_id?.message}
+                        disabled={loading}
+                        options={departmentOptions}
+                    />
+                    <div className="form-group">
+                        <Checkbox
+                            label="I accept the terms and conditions *"
+                            id="terms"
+                            {...register('terms')}
+                            error={errors.terms?.message}
+                            disabled={loading}
+                        />
+                    </div>
+                    <button 
+                        type="submit" 
+                        className="submit-button" 
+                        disabled={loading}
+                    >
+                        {loading ? 'Registering...' : 'Register'}
+                    </button>
+                </form>
+                <p className="login-link">
+                    Already have an account? <Link to="/login">Login here</Link>
+                </p>
+            </div>
+        </div>
+    );
+};
+
+export default Register;

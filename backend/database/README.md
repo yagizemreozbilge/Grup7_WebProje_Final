@@ -1,172 +1,228 @@
-# Veritabanı Şeması
+# 🗄️ Campus Management System - Database
 
-## Özet
+PostgreSQL 14+ veritabanı şeması ve seed verileri.
 
-Bu veritabanı şeması, Campus Management System için tasarlanmış kapsamlı bir PostgreSQL şemasıdır.
+## 📊 Özellikler
 
-### Özellikler
+- ✅ **38+ Tablo** - Kapsamlı kampüs yönetim sistemi
+- ✅ **3NF Normalizasyon** - Veri bütünlüğü
+- ✅ **Foreign Keys** - CASCADE ve RESTRICT
+- ✅ **Indexes** - Performance optimizasyonu
+- ✅ **Constraints** - CHECK, UNIQUE, NOT NULL
+- ✅ **JSONB** - Esnek veri yapıları
+- ✅ **Soft Delete** - deleted_at pattern
+- ✅ **Triggers** - Otomatik sayaç ve timestamp
+- ✅ **Views** - Hazır raporlama
 
-- **38+ Tablo** (Minimum 30 gereksinimi karşılanıyor)
-- **3NF Normalization**
-- **Foreign Keys**: CASCADE ve RESTRICT uygun kullanım
-- **Indexes**: Performance için tüm gerekli alanlara index
-- **Constraints**: CHECK, UNIQUE, NOT NULL
-- **JSONB**: Flexible data (schedule, metadata, preferences)
-- **Soft Delete**: `deleted_at` pattern
-- **Triggers**: Otomatik updated_at, enrollment count, vb.
-- **Views**: Yaygın sorgular için hazır view'lar
+## 📁 Dosya Yapısı
 
-## Tablolar (38)
+```
+backend/database/
+├── schema.sql          # Ana veritabanı şeması (38+ tablo)
+├── seed.sql            # Test/demo verileri
+├── init-db.sql         # Tam kurulum scripti
+├── setup-database.ps1  # Windows PowerShell setup
+└── README.md           # Bu dosya
+```
 
-### Core Tables
+## 🚀 Hızlı Kurulum
+
+### Windows (PowerShell)
+
+```powershell
+# Proje kök dizininde çalıştır
+cd backend/database
+.\setup-database.ps1
+```
+
+### Docker Compose
+
+```bash
+# 1. PostgreSQL container başlat
+docker-compose up -d postgres
+
+# 2. Container hazır olana kadar bekle
+docker exec campus_postgres pg_isready -U admin
+
+# 3. Şema oluştur
+docker exec -i campus_postgres psql -U admin -d campus_db < backend/database/schema.sql
+
+# 4. Seed data yükle
+docker exec -i campus_postgres psql -U admin -d campus_db < backend/database/seed.sql
+```
+
+### Windows PowerShell (Manuel)
+
+```powershell
+# PostgreSQL başlat
+docker-compose up -d postgres
+
+# 10 saniye bekle
+Start-Sleep -Seconds 10
+
+# Şema ve seed yükle
+Get-Content backend/database/schema.sql | docker exec -i campus_postgres psql -U admin -d campus_db
+Get-Content backend/database/seed.sql | docker exec -i campus_postgres psql -U admin -d campus_db
+```
+
+## 🔗 Bağlantı Bilgileri
+
+| Parametre | Değer |
+|-----------|-------|
+| Host | localhost |
+| Port | 5432 |
+| Database | campus_db |
+| Username | admin |
+| Password | password |
+
+### Connection String
+
+```
+postgresql://admin:password@localhost:5432/campus_db
+```
+
+## 👤 Test Kullanıcıları
+
+Tüm kullanıcıların şifresi: `Password123`
+
+| Role | Email | Açıklama |
+|------|-------|----------|
+| Admin | admin@campus.edu | Sistem yöneticisi |
+| Faculty | prof.smith@campus.edu | Profesör |
+| Faculty | prof.johnson@campus.edu | Doçent |
+| Faculty | dr.williams@campus.edu | Yrd. Doç. |
+| Student | student1@campus.edu | Alice Brown |
+| Student | student2@campus.edu | Bob Wilson |
+| Student | student3@campus.edu | Carol Davis |
+| Student | student4@campus.edu | David Miller |
+| Student | student5@campus.edu | Eva Martinez |
+
+## 📋 Tablo Listesi (38 Tablo)
+
+### Kullanıcı & Kimlik Doğrulama
 1. `users` - Ana kullanıcı tablosu
 2. `students` - Öğrenci bilgileri
-3. `faculty` - Öğretim üyesi bilgileri
-4. `admins` - Admin bilgileri
-5. `departments` - Bölümler
+3. `faculty` - Akademik personel
+4. `admins` - Yönetici bilgileri
+5. `session_tokens` - Oturum yönetimi
+6. `password_resets` - Şifre sıfırlama
+7. `email_verifications` - E-posta doğrulama
 
-### Academic Tables
-6. `semesters` - Dönemler
-7. `courses` - Dersler
-8. `course_sections` - Ders şubeleri
-9. `schedules` - Ders programı
-10. `enrollments` - Ders kayıtları
-11. `grades` - Notlar
+### Akademik Yapı
+8. `departments` - Bölümler
+9. `semesters` - Dönemler
+10. `courses` - Dersler
+11. `course_sections` - Ders şubeleri
+12. `schedules` - Ders programı
+13. `academic_calendar` - Akademik takvim
 
-### Attendance Tables
-12. `attendance_sessions` - Yoklama oturumları
-13. `attendance_records` - Yoklama kayıtları
-14. `excuse_requests` - Mazeret talepleri
+### Kayıt & Notlar
+14. `enrollments` - Ders kayıtları
+15. `grades` - Detaylı notlar
+16. `classrooms` - Derslikler
 
-### Facility Tables
-15. `classrooms` - Derslikler
-16. `reservations` - Rezervasyonlar
+### Yoklama
+17. `attendance_sessions` - Yoklama oturumları
+18. `attendance_records` - Yoklama kayıtları
+19. `excuse_requests` - Mazeret başvuruları
 
-### Dining Tables
-17. `meal_menus` - Yemek menüleri
-18. `meal_reservations` - Yemek rezervasyonları
+### Rezervasyonlar
+20. `reservations` - Derslik rezervasyonları
+21. `parking_spots` - Otopark yerleri
+22. `parking_reservations` - Otopark rezervasyonları
 
-### Finance Tables
-19. `wallets` - Dijital cüzdanlar
-20. `transactions` - İşlem geçmişi
+### Yemek Sistemi
+23. `meal_menus` - Yemek menüleri
+24. `meal_reservations` - Yemek rezervasyonları
 
-### Event Tables
-21. `events` - Etkinlikler
-22. `event_registrations` - Etkinlik kayıtları
+### Finans
+25. `wallets` - Dijital cüzdanlar
+26. `transactions` - Finansal işlemler
 
-### Communication Tables
-23. `notifications` - Bildirimler
-24. `notification_preferences` - Bildirim tercihleri
-25. `announcements` - Duyurular
+### Etkinlikler
+27. `events` - Kampüs etkinlikleri
+28. `event_registrations` - Etkinlik kayıtları
 
-### Club Tables
-26. `clubs` - Kulüpler
-27. `club_memberships` - Kulüp üyelikleri
+### Bildirimler
+29. `notifications` - Bildirimler
+30. `notification_preferences` - Bildirim tercihleri
 
-### IoT Tables
-28. `iot_sensors` - IoT sensörleri
-29. `sensor_data` - Sensör verileri
+### İletişim
+31. `announcements` - Duyurular
 
-### System Tables
-30. `audit_logs` - Audit logları
-31. `password_resets` - Şifre sıfırlama
-32. `email_verifications` - Email doğrulama
-33. `session_tokens` - Oturum token'ları
+### Kulüpler
+32. `clubs` - Kulüpler
+33. `club_memberships` - Kulüp üyelikleri
 
-### Library Tables
-34. `library_books` - Kütüphane kitapları
-35. `library_loans` - Kitap ödünç alma
+### Kütüphane
+34. `library_books` - Kitaplar
+35. `library_loans` - Ödünç işlemleri
 
-### Parking Tables
-36. `parking_spots` - Otopark yerleri
-37. `parking_reservations` - Otopark rezervasyonları
+### IoT
+36. `iot_sensors` - Sensörler
+37. `sensor_data` - Sensör verileri
 
-### Calendar Tables
-38. `academic_calendar` - Akademik takvim
+### Denetim
+38. `audit_logs` - Denetim kayıtları
 
-## Kurulum
+## 🔍 Faydalı Sorgular
 
-### 1. PostgreSQL'de veritabanı oluşturun
+### Veritabanına Bağlan
+
+```bash
+docker exec -it campus_postgres psql -U admin -d campus_db
+```
+
+### Tüm Tabloları Listele
 
 ```sql
-CREATE DATABASE campus_db;
+\dt
 ```
 
-### 2. Schema'yı yükleyin
+### Tablo Yapısını Gör
+
+```sql
+\d+ users
+\d+ students
+\d+ courses
+```
+
+### Aktif Öğrenciler
+
+```sql
+SELECT * FROM v_active_students;
+```
+
+### Mevcut Dönem Dersleri
+
+```sql
+SELECT * FROM v_current_sections;
+```
+
+### Yaklaşan Etkinlikler
+
+```sql
+SELECT * FROM v_upcoming_events;
+```
+
+## 🔄 Veritabanını Sıfırla
 
 ```bash
-psql -U postgres -d campus_db -f schema.sql
+# Container'ı durdur ve sil
+docker-compose down -v
+
+# Yeniden başlat
+docker-compose up -d postgres
+
+# Şema ve seed yükle
+docker exec -i campus_postgres psql -U admin -d campus_db < backend/database/schema.sql
+docker exec -i campus_postgres psql -U admin -d campus_db < backend/database/seed.sql
 ```
 
-### 3. Seed data'yı yükleyin (opsiyonel)
+## 📝 Notlar
 
-```bash
-psql -U postgres -d campus_db -f seed.sql
-```
-
-## Tek Komutla Kurulum
-
-```bash
-# Windows PowerShell
-psql -U postgres -c "CREATE DATABASE campus_db;"
-psql -U postgres -d campus_db -f backend/database/schema.sql
-psql -U postgres -d campus_db -f backend/database/seed.sql
-
-# Linux/Mac
-sudo -u postgres psql -c "CREATE DATABASE campus_db;"
-sudo -u postgres psql -d campus_db -f backend/database/schema.sql
-sudo -u postgres psql -d campus_db -f backend/database/seed.sql
-```
-
-## Test Kullanıcıları
-
-| Email | Şifre | Rol |
-|-------|-------|-----|
-| admin@campus.edu | Password123 | Admin |
-| prof.smith@campus.edu | Password123 | Faculty |
-| prof.johnson@campus.edu | Password123 | Faculty |
-| student1@campus.edu | Password123 | Student |
-| student2@campus.edu | Password123 | Student |
-
-## ER Diagram
-
-Tablolar arası ilişkiler:
-
-```
-users ─────┬───> students ───> departments
-           ├───> faculty ────> departments
-           └───> admins
-
-courses ───> departments
-course_sections ───┬───> courses
-                   ├───> faculty (instructor)
-                   ├───> classrooms
-                   └───> semesters
-
-enrollments ───┬───> students
-               └───> course_sections
-
-attendance_sessions ───> course_sections
-attendance_records ───┬───> attendance_sessions
-                      └───> students
-
-wallets ───> users
-transactions ───> wallets
-
-events ───> users (organizer)
-event_registrations ───┬───> events
-                       └───> users
-
-notifications ───> users
-clubs ───> faculty (advisor)
-club_memberships ───┬───> clubs
-                    └───> users
-```
-
-## Performans Notları
-
-- Tüm foreign key'lere index eklenmiştir
-- Sık sorgulanan alanlara (email, status, dates) index eklenmiştir
-- `sensor_data` tablosu büyük veri için partition'lanabilir
-- View'lar yaygın sorgular için optimize edilmiştir
-
+- Şema PostgreSQL 14+ gerektirir
+- UUID extension kullanılmaktadır
+- Soft delete pattern bazı tablolarda uygulanmıştır
+- JSONB alanları metadata ve esnek veri için kullanılmaktadır
+- Tüm tablolar `created_at` ve `updated_at` timestamp'leri içerir

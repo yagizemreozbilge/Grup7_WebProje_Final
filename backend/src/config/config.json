@@ -1,15 +1,15 @@
 {
     "development": {
-        "username": "postgres",
-        "password": "postgres",
+        "username": "admin",
+        "password": "password",
         "database": "campus_db",
         "host": "localhost",
         "port": "5432",
         "dialect": "postgres"
     },
     "test": {
-        "username": "postgres",
-        "password": "postgres",
+        "username": "admin",
+        "password": "password",
         "database": "campus_db_test",
         "host": "localhost",
         "port": "5432",
