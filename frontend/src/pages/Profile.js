@@ -114,7 +114,7 @@ const Profile = () => {
                         <div className='profile-picture-section'>
                             {profilePicture ? (
                                 <img 
-                                    src={http://localhost:5000} 
+                                    src={`http://localhost:5000${profilePicture}`} 
                                     alt='Profile' 
                                     className='profile-picture' 
                                 />

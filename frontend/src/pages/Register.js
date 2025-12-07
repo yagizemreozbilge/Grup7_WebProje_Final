@@ -123,7 +123,7 @@ const Register = () => {
         { value: '', label: 'Bölüm Seçin' },
         ...departments.map(dept => ({
             value: dept.id,
-            label: ${dept.name} ()
+            label: `${dept.name} (${dept.code})`
         }))
     ];
 
