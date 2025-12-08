@@ -45,3 +45,4 @@ Eğer testler çalışmıyorsa:
 2. Test veritabanının oluşturulduğundan emin olun
 3. Kullanıcı adı ve şifrenin doğru olduğundan emin olun
 4. `.env` dosyasında test veritabanı ayarlarını kontrol edin
+

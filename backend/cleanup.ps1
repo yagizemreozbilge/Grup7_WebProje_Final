@@ -47,3 +47,4 @@ foreach ($file in $filesToDelete) {
 
 Write-Host "`nTemizleme tamamlandı!" -ForegroundColor Green
 Write-Host "Eğer bazı dosyalar silinemediyse, lütfen IDE'yi kapatıp tekrar deneyin." -ForegroundColor Yellow
+
