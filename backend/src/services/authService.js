@@ -138,12 +138,16 @@ const login = async(email, password) => {
     }
 
     if (!user.is_verified) {
-        throw new Error('Please verify your email before logging in');
+        const err = new Error('Please verify your email before logging in');
+        err.statusCode = 401;
+        throw err;
     }
 
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-        throw new Error('Invalid email or password');
+        const err = new Error('Invalid email or password');
+        err.statusCode = 401;
+        throw err;
     }
 
     // Generate tokens
