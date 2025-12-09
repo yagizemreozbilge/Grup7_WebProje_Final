@@ -4,7 +4,7 @@ const path = require('path');
 const getCurrentUser = async (req, res, next) => {
   try {
     const user = await userService.getCurrentUser(req.user.id);
-    res.status(200).json(user);
+    res.status(200).json({ success: true, data: user });
   } catch (error) {
     next(error);
   }
@@ -14,8 +14,9 @@ const updateProfile = async (req, res, next) => {
   try {
     const user = await userService.updateProfile(req.user.id, req.body);
     res.status(200).json({
+      success: true,
       message: 'Profile updated successfully',
-      user
+      data: user
     });
   } catch (error) {
     next(error);
@@ -25,7 +26,10 @@ const updateProfile = async (req, res, next) => {
 const uploadProfilePicture = async (req, res, next) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'No file uploaded', details: [] }
+      });
     }
 
     // Create URL path (relative to server)
@@ -33,8 +37,9 @@ const uploadProfilePicture = async (req, res, next) => {
     const profilePictureUrl = await userService.updateProfilePicture(req.user.id, filePath);
     
     res.status(200).json({
+      success: true,
       message: 'Profile picture uploaded successfully',
-      profilePictureUrl
+      data: { profilePictureUrl }
     });
   } catch (error) {
     next(error);
@@ -51,7 +56,7 @@ const getAllUsers = async (req, res, next) => {
       department_id,
       search
     });
-    res.status(200).json(result);
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }

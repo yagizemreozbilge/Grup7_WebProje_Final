@@ -12,6 +12,6 @@ router.put('/me', authenticate, validateUpdateProfile, userController.updateProf
 router.post('/me/profile-picture', authenticate, upload.single('profilePicture'), userController.uploadProfilePicture);
 
 // Admin only routes
-router.get('/', authenticate, authorize('admin'), userController.getAllUsers);
+router.get('/', authenticate, authorize('ADMIN'), userController.getAllUsers);
 
 module.exports = router;

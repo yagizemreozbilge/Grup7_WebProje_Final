@@ -19,36 +19,33 @@ npm install
 ```env
 PORT=5000
 NODE_ENV=development
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=campus_db
-DB_USER=admin
-DB_PASSWORD=password
-JWT_SECRET=your-super-secret-jwt-key
-JWT_REFRESH_SECRET=your-super-secret-refresh-key
+DATABASE_URL="postgresql://admin:password@localhost:5432/campus_db?schema=public"
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+JWT_REFRESH_SECRET=your-refresh-secret-key
+JWT_EXPIRE=15m
+JWT_REFRESH_EXPIRE=7d
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
+EMAIL_FROM="Smart Campus <noreply@campus.edu.tr>"
 FRONTEND_URL=http://localhost:3000
+UPLOAD_DIR=uploads
+MAX_FILE_SIZE=5242880
 ```
 
 3. **Veritabanını oluşturun:**
 ```bash
-createdb campus_db
+npx prisma migrate dev
+npx prisma db seed
 ```
 
-4. **Migration'ları çalıştırın:**
+4. **(Opsiyonel) Prisma Client üretimi:**
 ```bash
-npm run migrate
+npx prisma generate
 ```
 
-5. **Seed data'yı yükleyin:**
-```bash
-npm run seed
-```
-
-6. **Sunucuyu başlatın:**
+5. **Sunucuyu başlatın:**
 ```bash
 # Development mode (nodemon ile)
 npm run dev
@@ -66,14 +63,9 @@ Detaylı API dokümantasyonu için `API_DOCUMENTATION.md` dosyasına bakın.
 ## Test
 
 ```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage (HTML raporu oluşturur)
-npm run test:coverage
+npm test              # Tüm testler
+npm run test:watch    # Watch mod
+npm run test:coverage # Coverage
 ```
 
 ### Test Coverage

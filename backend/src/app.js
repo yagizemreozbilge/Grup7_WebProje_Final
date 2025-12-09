@@ -3,6 +3,8 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const errorHandler = require('./middleware/errorHandler');
 
 const indexRouter = require('./routes/index');
@@ -11,6 +13,15 @@ const usersRouter = require('./routes/users');
 const departmentsRouter = require('./routes/departments');
 
 const app = express();
+
+// Security headers
+app.use(helmet());
+
+// Rate limiting (basic protection)
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100
+}));
 
 // CORS configuration
 app.use(cors({

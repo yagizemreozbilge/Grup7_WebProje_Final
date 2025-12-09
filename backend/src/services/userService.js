@@ -1,142 +1,98 @@
-const { User, Student, Faculty, Department } = require('../models');
-const { Op } = require('sequelize');
+const prisma = require('../prisma');
 
-const getCurrentUser = async(userId) => {
-    const user = await User.findByPk(userId, {
-        include: [
-            { model: Student, as: 'student', include: [{ model: Department, as: 'department' }] },
-            { model: Faculty, as: 'faculty', include: [{ model: Department, as: 'department' }] }
-        ]
-    });
-
-    if (!user) {
-        throw new Error('User not found');
+const getCurrentUser = async (userId) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      student: { include: { department: true } },
+      faculty: { include: { department: true } }
     }
+  });
 
-    const userResponse = user.toJSON();
-    delete userResponse.password_hash;
-    delete userResponse.refresh_token;
-    delete userResponse.verification_token;
-    delete userResponse.reset_password_token;
+  if (!user) {
+    const err = new Error('User not found');
+    err.code = 'NOT_FOUND';
+    err.statusCode = 404;
+    throw err;
+  }
 
-    return userResponse;
+  const { passwordHash, ...rest } = user;
+  return rest;
 };
 
-const updateProfile = async(userId, updateData) => {
-    const { full_name, phone } = updateData;
+const updateProfile = async (userId, updateData) => {
+  const { full_name, phone } = updateData;
 
-    const user = await User.findByPk(userId);
-    if (!user) {
-        throw new Error('User not found');
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      fullName: full_name,
+      phone
     }
+  });
 
-    if (full_name !== undefined) {
-        user.full_name = full_name;
-    }
-    if (phone !== undefined) {
-        user.phone = phone;
-    }
-
-    await user.save();
-
-    const userResponse = user.toJSON();
-    delete userResponse.password_hash;
-    delete userResponse.refresh_token;
-    delete userResponse.verification_token;
-    delete userResponse.reset_password_token;
-
-    return userResponse;
+  const { passwordHash, ...rest } = user;
+  return rest;
 };
 
-const updateProfilePicture = async(userId, filePath) => {
-    const user = await User.findByPk(userId);
-    if (!user) {
-        throw new Error('User not found');
-    }
-
-    user.profile_picture_url = filePath;
-    await user.save();
-
-    return user.profile_picture_url;
+const updateProfilePicture = async (userId, filePath) => {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { profilePictureUrl: filePath }
+  });
+  return user.profilePictureUrl;
 };
 
-const getAllUsers = async(options = {}) => {
-    const {
-        page = 1,
-            limit = 10,
-            role,
-            department_id,
-            search
-    } = options;
+const getAllUsers = async (options = {}) => {
+  const { page = 1, limit = 10, role, department_id, search } = options;
+  const take = parseInt(limit);
+  const skip = (parseInt(page) - 1) * take;
 
-    const offset = (page - 1) * limit;
-    const where = {};
+  const where = {};
+  if (role) where.role = role.toUpperCase();
+  if (search) {
+    where.OR = [
+      { email: { contains: search, mode: 'insensitive' } },
+      { fullName: { contains: search, mode: 'insensitive' } }
+    ];
+  }
 
-    if (role) {
-        where.role = role;
+  const include = {
+    student: department_id
+      ? { where: { departmentId: department_id }, include: { department: true } }
+      : { include: { department: true } },
+    faculty: department_id
+      ? { where: { departmentId: department_id }, include: { department: true } }
+      : { include: { department: true } }
+  };
+
+  const [count, users] = await prisma.$transaction([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      include,
+      take,
+      skip,
+      orderBy: { createdAt: 'desc' }
+    })
+  ]);
+
+  const sanitized = users.map(({ passwordHash, ...u }) => u);
+
+  return {
+    users: sanitized,
+    pagination: {
+      total: count,
+      page: parseInt(page),
+      limit: take,
+      pages: Math.ceil(count / take)
     }
-
-    if (search) {
-        where[Op.or] = [
-            { email: {
-                    [Op.iLike]: `%${search}%` } },
-            { full_name: {
-                    [Op.iLike]: `%${search}%` } }
-        ];
-    }
-
-    const include = [];
-    if (department_id) {
-        include.push({
-            model: Student,
-            as: 'student',
-            where: { department_id },
-            include: [{ model: Department, as: 'department' }],
-            required: false
-        }, {
-            model: Faculty,
-            as: 'faculty',
-            where: { department_id },
-            include: [{ model: Department, as: 'department' }],
-            required: false
-        });
-    } else {
-        include.push({ model: Student, as: 'student', include: [{ model: Department, as: 'department' }], required: false }, { model: Faculty, as: 'faculty', include: [{ model: Department, as: 'department' }], required: false });
-    }
-
-    const { count, rows } = await User.findAndCountAll({
-        where,
-        include,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        order: [
-            ['created_at', 'DESC']
-        ]
-    });
-
-    const users = rows.map(user => {
-        const userData = user.toJSON();
-        delete userData.password_hash;
-        delete userData.refresh_token;
-        delete userData.verification_token;
-        delete userData.reset_password_token;
-        return userData;
-    });
-
-    return {
-        users,
-        pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total: count,
-            pages: Math.ceil(count / limit)
-        }
-    };
+  };
 };
 
 module.exports = {
-    getCurrentUser,
-    updateProfile,
-    updateProfilePicture,
-    getAllUsers
+  getCurrentUser,
+  updateProfile,
+  updateProfilePicture,
+  getAllUsers
 };
