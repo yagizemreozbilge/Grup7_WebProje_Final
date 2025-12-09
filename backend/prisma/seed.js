@@ -8,25 +8,46 @@ async function main() {
 
   // Departments
   const now = new Date();
-  const deptCE = '11111111-1111-1111-1111-111111111111';
-  const deptEE = '22222222-2222-2222-2222-222222222222';
-  const deptME = '33333333-3333-3333-3333-333333333333';
-  
-  await prisma.department.upsert({
-    where: { id: deptCE },
-    update: {},
-    create: { id: deptCE, name: 'Computer Engineering', code: 'CE', facultyName: 'Engineering', createdAt: now, updated_at: now }
-  });
-  await prisma.department.upsert({
-    where: { id: deptEE },
-    update: {},
-    create: { id: deptEE, name: 'Electrical Engineering', code: 'EE', facultyName: 'Engineering', createdAt: now, updated_at: now }
-  });
-  await prisma.department.upsert({
-    where: { id: deptME },
-    update: {},
-    create: { id: deptME, name: 'Mechanical Engineering', code: 'ME', facultyName: 'Engineering', createdAt: now, updated_at: now }
-  });
+  const deptCE = '11111111-1111-1111-1111-111111111111'; // Computer Engineering
+  const deptEE = '22222222-2222-2222-2222-222222222222'; // Electrical Engineering
+  const deptME = '33333333-3333-3333-3333-333333333333'; // Mechanical Engineering
+  const deptMATH = '44444444-4444-4444-4444-444444444444'; // Mathematics
+  const deptCIVIL = '55555555-5555-5555-5555-555555555555'; // Civil Engineering
+  const deptIE = '66666666-6666-6666-6666-666666666666'; // Industrial Engineering
+  const deptARCH = '77777777-7777-7777-7777-777777777777'; // Architecture
+  const deptMED = '88888888-8888-8888-8888-888888888888'; // Medicine
+  const deptLAW = '99999999-9999-9999-9999-999999999999'; // Law
+  const deptPSY = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; // Psychology
+  const deptBUS = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'; // Business
+
+  const departments = [
+    { id: deptCE, name: 'Bilgisayar Mühendisliği', code: 'CENG', facultyName: 'Mühendislik Fakültesi' },
+    { id: deptEE, name: 'Elektrik-Elektronik Mühendisliği', code: 'EEE', facultyName: 'Mühendislik Fakültesi' },
+    { id: deptME, name: 'Makine Mühendisliği', code: 'ME', facultyName: 'Mühendislik Fakültesi' },
+    { id: deptMATH, name: 'Matematik', code: 'MATH', facultyName: 'Fen Edebiyat Fakültesi' },
+    { id: deptCIVIL, name: 'İnşaat Mühendisliği', code: 'CE', facultyName: 'Mühendislik Fakültesi' },
+    { id: deptIE, name: 'Endüstri Mühendisliği', code: 'IE', facultyName: 'Mühendislik Fakültesi' },
+    { id: deptARCH, name: 'Mimarlık', code: 'ARCH', facultyName: 'Mimarlık Fakültesi' },
+    { id: deptMED, name: 'Tıp', code: 'MED', facultyName: 'Tıp Fakültesi' },
+    { id: deptLAW, name: 'Hukuk', code: 'LAW', facultyName: 'Hukuk Fakültesi' },
+    { id: deptPSY, name: 'Psikoloji', code: 'PSY', facultyName: 'Fen Edebiyat Fakültesi' },
+    { id: deptBUS, name: 'İşletme', code: 'BUS', facultyName: 'İktisadi ve İdari Bilimler Fakültesi' }
+  ];
+
+  for (const dept of departments) {
+    await prisma.department.upsert({
+      where: { id: dept.id },
+      update: {},
+      create: { 
+        id: dept.id, 
+        name: dept.name, 
+        code: dept.code, 
+        facultyName: dept.facultyName, 
+        createdAt: now, 
+        updated_at: now 
+      }
+    });
+  }
 
   // Users
   const admin = await prisma.user.upsert({
