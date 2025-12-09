@@ -1,5 +1,40 @@
 const prisma = require('../prisma');
 
+const sanitizeUser = (user) => {
+  const { passwordHash, fullName, isVerified, profilePictureUrl, createdAt, updatedAt, student, faculty, ...rest } = user;
+  
+  const sanitized = {
+    ...rest,
+    full_name: fullName,
+    is_verified: isVerified,
+    profile_picture_url: profilePictureUrl,
+    created_at: createdAt,
+    updated_at: updatedAt
+  };
+
+  if (student) {
+    const { studentNumber, departmentId, userId, ...studentRest } = student;
+    sanitized.student = {
+      ...studentRest,
+      student_number: studentNumber,
+      department_id: departmentId,
+      user_id: userId
+    };
+  }
+
+  if (faculty) {
+    const { employeeNumber, departmentId, userId, ...facultyRest } = faculty;
+    sanitized.faculty = {
+      ...facultyRest,
+      employee_number: employeeNumber,
+      department_id: departmentId,
+      user_id: userId
+    };
+  }
+
+  return sanitized;
+};
+
 const getCurrentUser = async (userId) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -16,8 +51,7 @@ const getCurrentUser = async (userId) => {
     throw err;
   }
 
-  const { passwordHash, ...rest } = user;
-  return rest;
+  return sanitizeUser(user);
 };
 
 const updateProfile = async (userId, updateData) => {
@@ -28,11 +62,14 @@ const updateProfile = async (userId, updateData) => {
     data: {
       fullName: full_name,
       phone
+    },
+    include: {
+      student: { include: { department: true } },
+      faculty: { include: { department: true } }
     }
   });
 
-  const { passwordHash, ...rest } = user;
-  return rest;
+  return sanitizeUser(user);
 };
 
 const updateProfilePicture = async (userId, filePath) => {
@@ -41,6 +78,14 @@ const updateProfilePicture = async (userId, filePath) => {
     data: { profilePictureUrl: filePath }
   });
   return user.profilePictureUrl;
+};
+
+const deleteProfilePicture = async (userId) => {
+  const user = await prisma.user.update({
+    where: { id: userId },
+    data: { profilePictureUrl: null }
+  });
+  return user;
 };
 
 const getAllUsers = async (options = {}) => {
@@ -77,7 +122,7 @@ const getAllUsers = async (options = {}) => {
     })
   ]);
 
-  const sanitized = users.map(({ passwordHash, ...u }) => u);
+  const sanitized = users.map(user => sanitizeUser(user));
 
   return {
     users: sanitized,
@@ -94,5 +139,6 @@ module.exports = {
   getCurrentUser,
   updateProfile,
   updateProfilePicture,
+  deleteProfilePicture,
   getAllUsers
 };

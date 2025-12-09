@@ -15,7 +15,16 @@ const departmentsRouter = require('./routes/departments');
 const app = express();
 
 // Security headers
-app.use(helmet());
+// app.use(helmet({
+//   crossOriginResourcePolicy: false,
+//   crossOriginEmbedderPolicy: false
+// }));
+
+// Force CORP header globally to fix image loading
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  next();
+});
 
 // Rate limiting (basic protection)
 app.use(rateLimit({
@@ -35,7 +44,12 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 // Serve static files (uploads)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  setHeaders: (res, path, stat) => {
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
 
 // Routes
 app.use('/api/v1', indexRouter);

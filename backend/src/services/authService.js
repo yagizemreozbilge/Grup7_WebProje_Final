@@ -9,10 +9,39 @@ const toRoleEnum = (role) => (role || '').toLowerCase();
 
 const sanitizeUser = (user) => {
   if (!user) return null;
-  // Remove sensitive fields
-  // Prisma returns camelCase based on schema
-  const { passwordHash, ...rest } = user;
-  return rest;
+  // Remove sensitive fields and map camelCase to snake_case for frontend compatibility
+  const { passwordHash, fullName, isVerified, profilePictureUrl, createdAt, updatedAt, student, faculty, ...rest } = user;
+  
+  const sanitized = {
+    ...rest,
+    full_name: fullName,
+    is_verified: isVerified,
+    profile_picture_url: profilePictureUrl,
+    created_at: createdAt,
+    updated_at: updatedAt
+  };
+
+  if (student) {
+    const { studentNumber, departmentId, userId, ...studentRest } = student;
+    sanitized.student = {
+      ...studentRest,
+      student_number: studentNumber,
+      department_id: departmentId,
+      user_id: userId
+    };
+  }
+
+  if (faculty) {
+    const { employeeNumber, departmentId, userId, ...facultyRest } = faculty;
+    sanitized.faculty = {
+      ...facultyRest,
+      employee_number: employeeNumber,
+      department_id: departmentId,
+      user_id: userId
+    };
+  }
+
+  return sanitized;
 };
 
 const register = async (userData) => {

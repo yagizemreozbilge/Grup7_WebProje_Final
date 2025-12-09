@@ -10,6 +10,7 @@ const upload = require('../middleware/upload');
 router.get('/me', authenticate, userController.getCurrentUser);
 router.put('/me', authenticate, validateUpdateProfile, userController.updateProfile);
 router.post('/me/profile-picture', authenticate, upload.single('profilePicture'), userController.uploadProfilePicture);
+router.delete('/me/profile-picture', authenticate, userController.deleteProfilePicture);
 
 // Admin only routes
 router.get('/', authenticate, authorize('ADMIN'), userController.getAllUsers);

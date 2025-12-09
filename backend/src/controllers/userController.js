@@ -46,6 +46,18 @@ const uploadProfilePicture = async (req, res, next) => {
   }
 };
 
+const deleteProfilePicture = async (req, res, next) => {
+  try {
+    await userService.deleteProfilePicture(req.user.id);
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture removed successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getAllUsers = async (req, res, next) => {
   try {
     const { page, limit, role, department_id, search } = req.query;
@@ -66,6 +78,7 @@ module.exports = {
   getCurrentUser,
   updateProfile,
   uploadProfilePicture,
+  deleteProfilePicture,
   getAllUsers
 };
 

@@ -73,6 +73,7 @@ const validateBody = (schema) => (req, res, next) => {
   
   const { error } = schema.validate(req.body, { abortEarly: false });
   if (error) {
+    console.log('❌ Validation Error:', JSON.stringify(error.details, null, 2)); // DEBUG LOG
     return res.status(400).json({
       success: false,
       error: {
