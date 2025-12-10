@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 
+
 /**
  * Module dependencies.
  */
 
+/**
+ * Module dependencies.
+ */
+
+require('../models');
 var app = require('../app.js');
 var debug = require('debug')('api:server');
 var http = require('http');

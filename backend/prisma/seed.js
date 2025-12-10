@@ -35,18 +35,26 @@ async function main() {
   ];
 
   for (const dept of departments) {
-    await prisma.department.upsert({
-      where: { id: dept.id },
-      update: {},
-      create: { 
-        id: dept.id, 
-        name: dept.name, 
-        code: dept.code, 
-        facultyName: dept.facultyName, 
-        createdAt: now, 
-        updated_at: now 
+    try {
+      await prisma.department.upsert({
+        where: { id: dept.id },
+        update: {},
+        create: { 
+          id: dept.id, 
+          name: dept.name, 
+          code: dept.code, 
+          facultyName: dept.facultyName, // şemada facultyName var, map("faculty")
+          createdAt: now, // şemada createdAt var, map("created_at")
+          updated_at: now // şemada updated_at var
+        }
+      });
+    } catch (e) {
+      if (e.code === 'P2002') {
+        console.warn(`Department with code ${dept.code} already exists, skipping.`);
+      } else {
+        throw e;
       }
-    });
+    }
   }
 
   // Users
@@ -59,57 +67,64 @@ async function main() {
       role: 'admin',
       fullName: 'Admin User',
       isVerified: true,
-      createdAt: now,
-      updatedAt: now
+      createdAt: now, // şemada createdAt var, map("created_at")
+      updatedAt: now // şemada updatedAt var, map("updated_at")
     }
   });
 
-  const facultyUsers = await Promise.all([
-    prisma.user.upsert({
-      where: { email: 'faculty1@campus.edu.tr' },
-      update: {},
-      create: {
-        email: 'faculty1@campus.edu.tr',
-        passwordHash: password,
-        role: 'faculty',
-        fullName: 'Faculty One',
-        isVerified: true,
-        createdAt: now,
-        updatedAt: now,
-        faculty: {
-          create: {
-            employeeNumber: 'EMP001',
-            title: 'Professor',
-            departmentId: deptCE,
-            created_at: now,
-            updated_at: now
-          }
+  const facultyData = [
+    {
+      email: 'faculty1@campus.edu.tr',
+      passwordHash: password,
+      role: 'faculty',
+      fullName: 'Faculty One',
+      isVerified: true,
+      createdAt: now,
+      updatedAt: now,
+      faculty: {
+        create: {
+          employeeNumber: 'EMP001', // şemada employeeNumber var, map("employee_number")
+          title: 'Professor',
+          departmentId: deptCE, // şemada departmentId var, map("department_id")
+          created_at: now, // şemada created_at var
+          updated_at: now // şemada updated_at var
         }
       }
-    }),
-    prisma.user.upsert({
-      where: { email: 'faculty2@campus.edu.tr' },
-      update: {},
-      create: {
-        email: 'faculty2@campus.edu.tr',
-        passwordHash: password,
-        role: 'faculty',
-        fullName: 'Faculty Two',
-        isVerified: true,
-        createdAt: now,
-        updatedAt: now,
-        faculty: {
-          create: {
-            employeeNumber: 'EMP002',
-            title: 'Associate Professor',
-            departmentId: deptEE,
-            created_at: now,
-            updated_at: now
-          }
+    },
+    {
+      email: 'faculty2@campus.edu.tr',
+      passwordHash: password,
+      role: 'faculty',
+      fullName: 'Faculty Two',
+      isVerified: true,
+      createdAt: now,
+      updatedAt: now,
+      faculty: {
+        create: {
+          employeeNumber: 'EMP002',
+          title: 'Associate Professor',
+          departmentId: deptEE,
+          created_at: now,
+          updated_at: now
         }
       }
-    })
-  ]);
+    }
+  ];
+  for (const faculty of facultyData) {
+    try {
+      await prisma.user.upsert({
+        where: { email: faculty.email },
+        update: {},
+        create: faculty
+      });
+    } catch (e) {
+      if (e.code === 'P2002') {
+        console.warn(`Faculty with employee number ${faculty.faculty.create.employeeNumber} already exists, skipping.`);
+      } else {
+        throw e;
+      }
+    }
+  }
 
   const students = [
     { email: 'student1@campus.edu.tr', number: '20210001', dept: deptCE },
@@ -120,29 +135,37 @@ async function main() {
   ];
 
   for (const student of students) {
-    await prisma.user.upsert({
-      where: { email: student.email },
-      update: {},
-      create: {
-        email: student.email,
-        passwordHash: password,
-        role: 'student',
-        fullName: student.email.split('@')[0],
-        isVerified: true,
-        createdAt: now,
-        updatedAt: now,
-        student: {
-          create: {
-            studentNumber: student.number,
-            departmentId: student.dept,
-            gpa: 0,
-            cgpa: 0,
-            created_at: now,
-            updated_at: now
+    try {
+      await prisma.user.upsert({
+        where: { email: student.email },
+        update: {},
+        create: {
+          email: student.email,
+          passwordHash: password,
+          role: 'student',
+          fullName: student.email.split('@')[0],
+          isVerified: true,
+          createdAt: now,
+          updatedAt: now,
+          student: {
+            create: {
+              studentNumber: student.number, // şemada studentNumber var, map("student_number")
+              departmentId: student.dept, // şemada departmentId var, map("department_id")
+              gpa: 0,
+              cgpa: 0,
+              created_at: now, // şemada created_at var
+              updated_at: now // şemada updated_at var
+            }
           }
         }
+      });
+    } catch (e) {
+      if (e.code === 'P2002') {
+        console.warn(`Student with number ${student.number} already exists, skipping.`);
+      } else {
+        throw e;
       }
-    });
+    }
   }
 
   console.log('Seed completed');
