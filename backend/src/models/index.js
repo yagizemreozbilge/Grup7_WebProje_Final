@@ -11,6 +11,7 @@ const env = process.env.NODE_ENV || 'development';
 
 const db = {};
 
+
 // Use environment variables for database connection
 const dbConfig = {
     database: process.env.DB_NAME || 'campus_db',
@@ -29,11 +30,22 @@ const dbConfig = {
 };
 
 let sequelize;
+console.log("⏳ [DEBUG] Veritabanı bağlantı isteği gönderiliyor...");
+console.log(`⏳ [DEBUG] Host: ${process.env.DB_HOST} | Port: ${process.env.DB_PORT} | User: ${process.env.DB_USER}`);
 if (process.env.DATABASE_URL) {
     sequelize = new Sequelize(process.env.DATABASE_URL, { dialect: 'postgres' });
 } else {
     sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.password, dbConfig);
 }
+
+sequelize.authenticate()
+  .then(() => {
+    console.log("✅ [DEBUG] Veritabanı bağlantısı BAŞARILI!");
+  })
+  .catch((err) => {
+    console.error("❌ [DEBUG] Veritabanı bağlantısı BAŞARISIZ OLDU!");
+    console.error("❌ [DEBUG] Hata Detayı:", err);
+  });
 
 fs
     .readdirSync(__dirname)

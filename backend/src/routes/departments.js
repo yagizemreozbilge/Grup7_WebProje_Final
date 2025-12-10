@@ -1,15 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { Department } = require('../models');
+const prisma = require('../prisma');
 
 router.get('/', async(req, res, next) => {
     try {
-        const departments = await Department.findAll({
-            order: [
-                ['name', 'ASC']
-            ]
+        const departments = await prisma.department.findMany({
+            orderBy: { name: 'asc' }
         });
-        res.status(200).json(departments);
+        res.status(200).json({ success: true, data: departments });
     } catch (error) {
         next(error);
     }

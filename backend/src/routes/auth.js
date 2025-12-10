@@ -6,11 +6,11 @@ const { validateRegister, validateLogin, validateResetPassword } = require('../m
 
 // Public routes
 router.post('/register', validateRegister, authController.register);
-router.post('/verify-email/:token', authController.verifyEmail);
+router.post('/verify-email', authController.verifyEmail);
 router.post('/login', validateLogin, authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password/:token', validateResetPassword, authController.resetPassword);
+router.post('/reset-password', validateResetPassword, authController.resetPassword);
 
 // Protected routes
 router.post('/logout', authenticate, authController.logout);

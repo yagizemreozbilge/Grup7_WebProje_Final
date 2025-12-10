@@ -2,22 +2,47 @@ const authService = require('../services/authService');
 
 const register = async (req, res, next) => {
   try {
+    console.log('📨 Register request received:', {
+      email: req.body.email,
+      role: req.body.role,
+      hasFullName: !!req.body.full_name,
+      hasStudentNumber: !!req.body.student_number,
+      hasEmployeeNumber: !!req.body.employee_number,
+      department_id: req.body.department_id
+    });
+
     const user = await authService.register(req.body);
     res.status(201).json({
-      message: 'User registered successfully. Please check your email for verification.',
-      user
+      success: true,
+      message: 'Registration successful. Please check your email to verify your account.',
+      data: user
     });
   } catch (error) {
+    console.error('❌ Register error:', error.message);
+    console.error('❌ Error code:', error.code);
     next(error);
   }
 };
 
 const verifyEmail = async (req, res, next) => {
   try {
-    const { token } = req.params;
+    const { token } = req.body;
+    console.log('📨 Received verify-email request with token:', token ? `${token.substring(0, 20)}...` : 'MISSING');
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Token is required'
+        }
+      });
+    }
+    
     await authService.verifyEmail(token);
-    res.status(200).json({ message: 'Email verified successfully' });
+    res.status(200).json({ success: true, message: 'Email verified successfully' });
   } catch (error) {
+    console.error('❌ Verify email error:', error.message);
     next(error);
   }
 };
@@ -36,9 +61,13 @@ const login = async (req, res, next) => {
     });
 
     res.status(200).json({
+      success: true,
       message: 'Login successful',
-      user: result.user,
-      accessToken: result.accessToken
+      data: {
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken
+      }
     });
   } catch (error) {
     next(error);
@@ -50,11 +79,11 @@ const refresh = async (req, res, next) => {
     const token = req.cookies.refreshToken || req.body.refreshToken;
     
     if (!token) {
-      return res.status(401).json({ error: 'Refresh token required' });
+      return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Refresh token required' } });
     }
 
     const result = await authService.refreshToken(token);
-    res.status(200).json(result);
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
@@ -75,7 +104,8 @@ const forgotPassword = async (req, res, next) => {
     const { email } = req.body;
     await authService.forgotPassword(email);
     res.status(200).json({ 
-      message: 'If an account with that email exists, a password reset link has been sent.' 
+      success: true,
+      message: 'Password reset link sent to your email.'
     });
   } catch (error) {
     next(error);
@@ -84,10 +114,9 @@ const forgotPassword = async (req, res, next) => {
 
 const resetPassword = async (req, res, next) => {
   try {
-    const { token } = req.params;
-    const { password } = req.body;
-    await authService.resetPassword(token, password);
-    res.status(200).json({ message: 'Password reset successfully' });
+    const { token, password, confirmPassword } = req.body;
+    await authService.resetPassword(token, password, confirmPassword);
+    res.status(200).json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     next(error);
   }

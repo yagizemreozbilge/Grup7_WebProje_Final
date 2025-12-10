@@ -1,22 +1,27 @@
 const { verifyAccessToken } = require('../utils/jwt');
-const { User } = require('../models');
+const prisma = require('../prisma');
 
 const authenticate = async(req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
+        console.log('Auth Header:', authHeader); // DEBUG
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.log('No token or invalid format'); // DEBUG
             return res.status(401).json({ error: 'No token provided' });
         }
 
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        console.log('Token:', token); // DEBUG
 
         try {
             const decoded = verifyAccessToken(token);
+            console.log('Decoded:', decoded); // DEBUG
 
-            const user = await User.findByPk(decoded.id);
+            const user = await prisma.user.findUnique({ where: { id: decoded.id } });
             if (!user) {
-                return res.status(401).json({ error: 'User not found' });
+                console.log('User not found in DB'); // DEBUG
+                return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'User not found' } });
             }
 
             req.user = {
@@ -27,10 +32,10 @@ const authenticate = async(req, res, next) => {
 
             next();
         } catch (error) {
-            return res.status(401).json({ error: 'Invalid or expired token' });
+            return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' } });
         }
     } catch (error) {
-        return res.status(500).json({ error: 'Authentication error' });
+        return res.status(500).json({ success: false, error: { code: 'INTERNAL_SERVER_ERROR', message: 'Authentication error' } });
     }
 };
 
