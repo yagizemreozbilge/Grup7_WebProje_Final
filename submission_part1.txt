@@ -1,0 +1,19 @@
+Group Name: Grup 7
+Üyeler:
+ Gökçe Nur Haymana - 221401011 
+ Emre Korkmaz - 221401006 
+ Yağız Emre Özbilge - 221401008 
+ Fatıma Doğan – 221401007 
+
+GitHub Repositories:
+• Backend: [https://github.com/yagizemreozbilge/Grup7_WebProje_Final.git]
+• Frontend: [https://github.com/emrekorkmaz-ce/Grup7_WebProje_Frontend.git]
+
+Docker Compose:
+• Instructions: See README.md
+• Command: docker-compose up
+
+Demo Video: https://youtu.be/gO83gxzR-KA
+Demo Video Giriş İzni Verilen Mail:mehmetsevri@gmail.com
+
+Note: Part 1 teslimatı tamamlanmıştır. Tüm zorunlu özellikler ve Dokümantasyon gereksinimleri karşılanmıştır.

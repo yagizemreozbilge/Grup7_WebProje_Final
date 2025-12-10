@@ -38,25 +38,9 @@ Bu doküman, Campus Management System'in temel özelliklerini ve kullanımını 
 
 4. Başarılı kayıt sonrası email adresinize doğrulama linki gönderilecektir.
 
-### Ekran Görüntüsü:
-```
-┌─────────────────────────────────┐
-│         Register                │
-├─────────────────────────────────┤
-│ Full Name: [____________]       │
-│ Email: [____________]           │
-│ Password: [____________]        │
-│ Confirm Password: [____________]│
-│ User Type: [Student ▼]         │
-│ Student Number: [____________]  │
-│ Department: [Select ▼]         │
-│                                 │
-│        [Register]               │
-│                                 │
-│ Already have an account?       │
-│ Login here                      │
-└─────────────────────────────────┘
-```
+### Ekran Görüntüsü
+
+![Kayıt Olma Ekranı](screenshots/register_page.png)
 
 ---
 
@@ -90,28 +74,18 @@ Bu doküman, Campus Management System'in temel özelliklerini ve kullanımını 
 
 4. Başarılı giriş sonrası Dashboard sayfasına yönlendirileceksiniz.
 
-### Ekran Görüntüsü:
-```
-┌─────────────────────────────────┐
-│           Login                 │
-├─────────────────────────────────┤
-│ Email: [____________]           │
-│ Password: [____________]        │
-│                                 │
-│ Forgot password?                │
-│                                 │
-│        [Login]                  │
-│                                 │
-│ Don't have an account?         │
-│ Register here                    │
-└─────────────────────────────────┘
-```
+### Ekran Görüntüsü
 
+![Giriş Ekranı](screenshots/login_page.png)
 ---
 
 ## 4. Profil Görüntüleme ve Güncelleme
 
 ### Profil Görüntüleme:
+
+### Ekran Görüntüsü: Profil Detayları
+
+![Profil Görüntüleme Ekranı](screenshots/profile_view.png)
 
 1. Giriş yaptıktan sonra sol menüden **"Profile"** linkine tıklayın.
 
@@ -124,6 +98,10 @@ Bu doküman, Campus Management System'in temel özelliklerini ve kullanımını 
    - Employee Number (öğretim üyesi ise)
 
 ### Profil Güncelleme:
+
+### Ekran Görüntüsü: Güncelleme Başarılı
+
+![Profil Güncelleme Başarılı](screenshots/profile_update_success.png)
 
 1. Profil sayfasında **"Full Name"** ve **"Phone"** alanlarını düzenleyin.
 
@@ -149,22 +127,9 @@ Bu doküman, Campus Management System'in temel özelliklerini ve kullanımını 
 
 5. Başarılı yükleme sonrası "Profile picture uploaded successfully!" mesajı görünecek ve yeni fotoğrafınız görüntülenecektir.
 
-### Ekran Görüntüsü:
-```
-┌─────────────────────────────────┐
-│         Profile                 │
-├─────────────────────────────────┤
-│ Profile Picture                 │
-│  [Fotoğraf]  [Upload Picture]   │
-│                                 │
-│ Personal Information            │
-│ Email: [student@example.com]    │
-│ Full Name: [John Doe]           │
-│ Phone: [+905551234567]          │
-│                                 │
-│        [Save Changes]           │
-└─────────────────────────────────┘
-```
+### Ekran Görüntüsü
+
+![Fotoğraf Yükleme Kanıtı](screenshots/profile_picture_upload.png)
 
 ---
 
@@ -197,6 +162,10 @@ Bu doküman, Campus Management System'in temel özelliklerini ve kullanımını 
 ---
 
 ## Dashboard
+
+### Ekran Görüntüsü
+
+![Dashboard Ekranı](screenshots/dashboard.png)
 
 Giriş yaptıktan sonra Dashboard sayfasında:
 
