@@ -133,8 +133,6 @@ const register = async (userData) => {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const verificationToken = crypto.randomBytes(32).toString('hex');
-  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   console.log('💾 Creating user in database...');
 
@@ -145,7 +143,8 @@ const register = async (userData) => {
         passwordHash,
         role: toRoleEnum(normalizedRole),
         fullName: full_name || null,
-        isVerified: false,
+        // E-posta doğrulamasını devre dışı bıraktık; kullanıcıyı direkt doğrulanmış işaretliyoruz
+        isVerified: true,
         student: normalizedRole === 'student'
           ? {
               create: {
@@ -165,12 +164,7 @@ const register = async (userData) => {
               }
             }
           : undefined,
-        emailVerificationToken: {
-          create: {
-            token: verificationToken,
-            expiresAt: verificationExpires
-          }
-        }
+        // emailVerificationToken oluşturulmuyor (verification off)
       },
       include: {
         student: true,
@@ -179,20 +173,6 @@ const register = async (userData) => {
     });
 
     console.log('✅ User created successfully:', created.id);
-
-    try {
-      await sendVerificationEmail(email, verificationToken);
-      console.log(`✅ Verification email sent to ${email}`);
-    } catch (e) {
-      console.error('❌ Verification email error:', e);
-      // In development, log the token so user can manually verify
-      if (process.env.NODE_ENV === 'development') {
-        console.log('\n📧 DEVELOPMENT MODE: Email verification token:');
-        console.log(`Token: ${verificationToken}`);
-        console.log(`Verification URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`);
-        console.log('You can manually verify by visiting the URL above or using the token in POST /auth/verify-email\n');
-      }
-    }
 
     return { userId: created.id, email: created.email };
   } catch (error) {
@@ -259,13 +239,6 @@ const login = async (email, password) => {
 
   if (!user) {
     const err = new Error('Geçersiz e-posta veya şifre');
-    err.code = 'UNAUTHORIZED';
-    err.statusCode = 401;
-    throw err;
-  }
-
-  if (!user.isVerified) {
-    const err = new Error('Lütfen önce e-postanızı doğrulayın');
     err.code = 'UNAUTHORIZED';
     err.statusCode = 401;
     throw err;
