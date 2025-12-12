@@ -5,11 +5,12 @@
  * Module dependencies.
  */
 
-/**
- * Module dependencies.
- */
-
-require('../models');
+// NOTE:
+// We intentionally do NOT bootstrap Sequelize models here. The app uses Prisma
+// for database access, and auto-connecting Sequelize was causing startup
+// failures when environment variables were missing. If you need Sequelize
+// migrations, run them via CLI without requiring models at runtime.
+// require('../models');
 var app = require('../app.js');
 var debug = require('debug')('api:server');
 var http = require('http');
