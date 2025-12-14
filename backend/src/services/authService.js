@@ -53,8 +53,10 @@ const register = async (userData) => {
     department_id: userData.department_id
   });
 
+  // Normalize email to lowercase
+  const normalizedEmail = (userData.email || '').toLowerCase().trim();
+  
   const {
-    email,
     password,
     confirmPassword,
     role,
@@ -64,6 +66,8 @@ const register = async (userData) => {
     department_id,
     title
   } = userData;
+  
+  const email = normalizedEmail;
 
   // Validate required fields
   if (!email || !password || !role) {
@@ -104,7 +108,7 @@ const register = async (userData) => {
     throw err;
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (existing) {
     const err = new Error('Bu e-posta ile kullanıcı zaten var');
     err.code = 'CONFLICT';
@@ -134,17 +138,31 @@ const register = async (userData) => {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
+  // Email verification setting (can be disabled via env variable for development)
+  const requireEmailVerification = process.env.REQUIRE_EMAIL_VERIFICATION !== 'false';
+  const isVerified = !requireEmailVerification; // If verification disabled, mark as verified immediately
+
   console.log('💾 Creating user in database...');
+  console.log('📧 Email verification required:', requireEmailVerification);
 
   try {
+    // Generate verification token if email verification is enabled
+    let verificationToken = null;
+    let verificationExpires = null;
+    
+    if (requireEmailVerification) {
+      const crypto = require('crypto');
+      verificationToken = crypto.randomBytes(32).toString('hex');
+      verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    }
+
     const created = await prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail, // Use normalized email
         passwordHash,
         role: toRoleEnum(normalizedRole),
         fullName: full_name || null,
-        // E-posta doğrulamasını devre dışı bıraktık; kullanıcıyı direkt doğrulanmış işaretliyoruz
-        isVerified: true,
+        isVerified: isVerified,
         student: normalizedRole === 'student'
           ? {
               create: {
@@ -164,17 +182,35 @@ const register = async (userData) => {
               }
             }
           : undefined,
-        // emailVerificationToken oluşturulmuyor (verification off)
+        // Create email verification token if verification is enabled
+        emailVerificationToken: requireEmailVerification ? {
+          create: {
+            token: verificationToken,
+            expiresAt: verificationExpires
+          }
+        } : undefined
       },
       include: {
         student: true,
-        faculty: true
+        faculty: true,
+        emailVerificationToken: true
       }
     });
 
     console.log('✅ User created successfully:', created.id);
 
-    return { userId: created.id, email: created.email };
+    // Send verification email if required
+    if (requireEmailVerification && verificationToken) {
+      try {
+        await sendVerificationEmail(normalizedEmail, verificationToken);
+        console.log('📧 Verification email sent to:', normalizedEmail);
+      } catch (emailError) {
+        console.error('⚠️ Failed to send verification email:', emailError.message);
+        // Don't fail registration if email sending fails
+      }
+    }
+
+    return { userId: created.id, email: created.email, requiresVerification: requireEmailVerification };
   } catch (error) {
     console.error('❌ Error creating user:', error);
     throw error;
@@ -229,8 +265,13 @@ const verifyEmail = async (token) => {
 };
 
 const login = async (email, password) => {
+  // Normalize email to lowercase for case-insensitive lookup
+  const normalizedEmail = email.toLowerCase().trim();
+  
+  console.log('🔐 Login attempt for email:', normalizedEmail);
+  
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: normalizedEmail },
     include: {
       student: { include: { department: true } },
       faculty: { include: { department: true } }
@@ -238,20 +279,35 @@ const login = async (email, password) => {
   });
 
   if (!user) {
+    console.log('❌ User not found for email:', normalizedEmail);
     const err = new Error('Geçersiz e-posta veya şifre');
     err.code = 'UNAUTHORIZED';
     err.statusCode = 401;
     throw err;
   }
 
+  console.log('✅ User found, comparing password...');
   const isValid = await bcrypt.compare(password, user.passwordHash);
   if (!isValid) {
+    console.log('❌ Password mismatch for user:', normalizedEmail);
     const err = new Error('Geçersiz e-posta veya şifre');
     err.code = 'UNAUTHORIZED';
     err.statusCode = 401;
     throw err;
   }
-
+  
+  console.log('✅ Password verified for user:', normalizedEmail);
+  
+  // Check if email verification is required and user is not verified
+  const requireEmailVerification = process.env.REQUIRE_EMAIL_VERIFICATION !== 'false';
+  if (requireEmailVerification && !user.isVerified) {
+    console.log('❌ User email not verified:', normalizedEmail);
+    const err = new Error('E-posta adresinizi doğrulamanız gerekiyor. Lütfen e-posta kutunuzu kontrol edin.');
+    err.code = 'UNAUTHORIZED';
+    err.statusCode = 401;
+    throw err;
+  }
+  
   const payload = { id: user.id, email: user.email, role: user.role };
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
