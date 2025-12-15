@@ -94,18 +94,29 @@ exports.getSectionGrades = async (req, res) => {
 exports.getMySections = async (req, res) => {
   try {
     const userId = req.user.id;
-    // Find faculty profile
-    const faculty = await prisma.faculty.findFirst({
-      where: { userId: userId }
-    });
-    if (!faculty) {
-      return res.status(404).json({ error: 'Öğretim görevlisi profili bulunamadı' });
-    }
+    const userRole = req.user.role;
 
-    const sections = await prisma.course_sections.findMany({
-      where: { instructor_id: faculty.id },
-      include: { courses: true }
-    });
+    let sections;
+
+    // Admin tüm dersleri görebilir
+    if (userRole === 'admin') {
+      sections = await prisma.course_sections.findMany({
+        include: { courses: true }
+      });
+    } else {
+      // Find faculty profile
+      const faculty = await prisma.faculty.findFirst({
+        where: { userId: userId }
+      });
+      if (!faculty) {
+        return res.status(404).json({ error: 'Öğretim görevlisi profili bulunamadı' });
+      }
+
+      sections = await prisma.course_sections.findMany({
+        where: { instructor_id: faculty.id },
+        include: { courses: true }
+      });
+    }
 
     res.json(sections.map(s => ({
       id: s.id,
