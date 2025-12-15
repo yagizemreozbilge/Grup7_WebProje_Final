@@ -135,10 +135,20 @@ const getAllUsers = async (options = {}) => {
   };
 };
 
+const getTranscript = async (userId) => {
+  // Gerçek uygulamada veritabanından alınmalı. Örnek veri:
+  return [
+    { courseCode: 'CSE101', courseName: 'Algoritmalar', credits: 6, letterGrade: 'AA', score: 95, semesterName: '2023 Güz' },
+    { courseCode: 'MAT101', courseName: 'Matematik I', credits: 5, letterGrade: 'BA', score: 88, semesterName: '2023 Güz' },
+    // ...
+  ];
+};
+
 module.exports = {
   getCurrentUser,
   updateProfile,
   updateProfilePicture,
   deleteProfilePicture,
-  getAllUsers
+  getAllUsers,
+  getTranscript
 };

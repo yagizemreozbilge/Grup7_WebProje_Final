@@ -1,5 +1,6 @@
 const userService = require('../services/userService');
 const path = require('path');
+const PDFDocument = require('pdfkit');
 
 const getCurrentUser = async (req, res, next) => {
   try {
@@ -74,11 +75,33 @@ const getAllUsers = async (req, res, next) => {
   }
 };
 
+const downloadTranscript = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    // Örnek veri: Gerçek uygulamada userService.getTranscript(userId) ile alınmalı
+    const transcript = await userService.getTranscript(userId);
+    const doc = new PDFDocument();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="transkript.pdf"');
+    doc.pipe(res);
+    doc.fontSize(18).text('Transkript', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12);
+    transcript.forEach(row => {
+      doc.text(`${row.courseCode} - ${row.courseName} | Kredi: ${row.credits} | Not: ${row.letterGrade} | Dönem: ${row.semesterName}`);
+    });
+    doc.end();
+  } catch (err) {
+    res.status(500).json({ error: 'Transkript PDF oluşturulamadı', details: err.message });
+  }
+};
+
 module.exports = {
   getCurrentUser,
   updateProfile,
   uploadProfilePicture,
   deleteProfilePicture,
-  getAllUsers
+  getAllUsers,
+  downloadTranscript
 };
 

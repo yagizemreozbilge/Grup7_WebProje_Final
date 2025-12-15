@@ -168,6 +168,50 @@ async function main() {
     }
   }
 
+  // --- Seed a course and a section for Computer Engineering ---
+  // Find faculty1 user and faculty
+  const faculty1User = await prisma.user.findUnique({ where: { email: 'faculty1@campus.edu.tr' } });
+  const faculty1 = await prisma.faculty.findUnique({ where: { userId: faculty1User.id } });
+
+  // Create a course for Computer Engineering (CENG)
+  const courseCENG101 = await prisma.courses.upsert({
+    where: { code: 'CENG101' },
+    update: {},
+    create: {
+      id: '11111111-cccc-dddd-eeee-111111111111',
+      code: 'CENG101',
+      name: 'Introduction to Computer Engineering',
+      description: 'Basic concepts of computer engineering.',
+      credits: 4,
+      department_id: deptCE,
+      semester: 'fall',
+      year: 2025,
+      is_active: true,
+      created_at: now,
+      updated_at: now
+    }
+  });
+
+  // Create a section for this course, assigned to faculty1
+  await prisma.course_sections.upsert({
+    where: {
+      id: '11111111-aaaa-bbbb-cccc-111111111111'
+    },
+    update: {},
+    create: {
+      id: '11111111-aaaa-bbbb-cccc-111111111111',
+      course_id: courseCENG101.id,
+      section_number: 1,
+      semester: 'fall',
+      year: 2025,
+      instructor_id: faculty1.id,
+      capacity: 30,
+      enrolled_count: 0,
+      created_at: now,
+      updated_at: now
+    }
+  });
+
   console.log('Seed completed');
 }
 

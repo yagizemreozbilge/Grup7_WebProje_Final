@@ -9,27 +9,27 @@ datasource db {
 }
 
 model User {
-  id                         String          @id @default(uuid()) @db.Uuid
-  email                      String          @unique @db.VarChar(255)
-  passwordHash               String          @map("password_hash") @db.VarChar(255)
-  role                       enum_users_role @default(student)
-  fullName                   String?         @map("full_name") @db.VarChar(255)
-  phone                      String?         @db.VarChar(255)
-  profilePictureUrl          String?         @map("profile_picture_url") @db.VarChar(255)
-  isVerified                 Boolean?        @default(false) @map("is_verified")
-  verification_token         String?         @db.VarChar(255)
-  verification_token_expires DateTime?       @db.Timestamptz(6)
-  reset_password_token       String?         @db.VarChar(255)
-  reset_password_expires     DateTime?       @db.Timestamptz(6)
+  id                         String                  @id @default(uuid()) @db.Uuid
+  email                      String                  @unique @db.VarChar(255)
+  passwordHash               String                  @map("password_hash") @db.VarChar(255)
+  role                       enum_users_role         @default(student)
+  fullName                   String?                 @map("full_name") @db.VarChar(255)
+  phone                      String?                 @db.VarChar(255)
+  profilePictureUrl          String?                 @map("profile_picture_url") @db.VarChar(255)
+  isVerified                 Boolean?                @default(false) @map("is_verified")
+  verification_token         String?                 @db.VarChar(255)
+  verification_token_expires DateTime?               @db.Timestamptz(6)
+  reset_password_token       String?                 @db.VarChar(255)
+  reset_password_expires     DateTime?               @db.Timestamptz(6)
   refresh_token              String?
-  createdAt                  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt                  DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
   admins                     admins?
-  faculty                    Faculty?
-  student                    Student?
   emailVerificationToken     EmailVerificationToken?
+  faculty                    Faculty?
   passwordResetTokens        PasswordResetToken[]
   refreshTokens              RefreshToken[]
+  student                    Student?
 
   @@map("users")
 }
@@ -49,16 +49,19 @@ model Faculty {
 }
 
 model Student {
-  id            String     @id @default(uuid()) @db.Uuid
-  userId        String     @unique @map("user_id") @db.Uuid
-  studentNumber String     @unique @map("student_number") @db.VarChar(255)
-  departmentId  String     @map("department_id") @db.Uuid
-  gpa           Decimal?   @default(0.0) @db.Decimal(3, 2)
-  cgpa          Decimal?   @default(0.0) @db.Decimal(3, 2)
-  created_at    DateTime   @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime   @updatedAt @db.Timestamptz(6)
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department    Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  id                String               @id @default(uuid()) @db.Uuid
+  userId            String               @unique @map("user_id") @db.Uuid
+  studentNumber     String               @unique @map("student_number") @db.VarChar(255)
+  departmentId      String               @map("department_id") @db.Uuid
+  gpa               Decimal?             @default(0.0) @db.Decimal(3, 2)
+  cgpa              Decimal?             @default(0.0) @db.Decimal(3, 2)
+  created_at        DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime             @updatedAt @db.Timestamptz(6)
+  attendanceRecords attendance_records[]
+  enrollments       enrollments[]
+  excuseRequests    excuse_requests[]
+  department        Department           @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("students")
 }
@@ -97,15 +100,15 @@ model RefreshToken {
 }
 
 model Department {
-  id         String    @id @default(uuid()) @db.Uuid
-  name       String    @db.VarChar(255)
-  code       String    @unique @db.VarChar(255)
-  facultyName String   @map("faculty") @db.VarChar(255)
-  createdAt  DateTime  @map("created_at") @db.Timestamptz(6)
-  updated_at DateTime  @db.Timestamptz(6)
-  courses    courses[]
-  faculty    Faculty[]
-  students   Student[]
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @db.VarChar(255)
+  code        String    @unique @db.VarChar(255)
+  facultyName String    @map("faculty") @db.VarChar(255)
+  createdAt   DateTime  @map("created_at") @db.Timestamptz(6)
+  updated_at  DateTime  @db.Timestamptz(6)
+  courses     courses[]
+  faculty     Faculty[]
+  students    Student[]
 
   @@map("departments")
 }
@@ -126,24 +129,150 @@ model admins {
 }
 
 model courses {
-  id            String                @id @db.Uuid
-  code          String                @unique @db.VarChar(20)
-  name          String                @db.VarChar(255)
-  description   String?
-  credits       Int
-  department_id String                @db.Uuid
-  semester      enum_courses_semester
-  year          Int
-  is_active     Boolean?              @default(true)
-  metadata      Json?                 @default("{}")
-  deleted_at    DateTime?             @db.Timestamptz(6)
-  created_at    DateTime              @db.Timestamptz(6)
-  updated_at    DateTime              @db.Timestamptz(6)
-  departments   Department            @relation(fields: [department_id], references: [id], onDelete: NoAction)
+  id               String                 @id @db.Uuid
+  code             String                 @unique @db.VarChar(20)
+  name             String                 @db.VarChar(255)
+  description      String?
+  credits          Int
+  department_id    String                 @db.Uuid
+  semester         enum_courses_semester
+  year             Int
+  is_active        Boolean?               @default(true)
+  metadata         Json?                  @default("{}")
+  deleted_at       DateTime?              @db.Timestamptz(6)
+  created_at       DateTime               @db.Timestamptz(6)
+  updated_at       DateTime               @db.Timestamptz(6)
+  prerequisitesFor course_prerequisites[] @relation("CoursePrerequisiteCourse")
+  isPrerequisiteOf course_prerequisites[] @relation("CoursePrerequisitePrereq")
+  sections         course_sections[]
+  departments      Department             @relation(fields: [department_id], references: [id], onDelete: NoAction)
 
   @@index([code], map: "courses_code")
   @@index([department_id], map: "courses_department_id")
   @@index([semester, year], map: "courses_semester_year")
+}
+
+model course_sections {
+  id                 String                @id @default(uuid()) @db.Uuid
+  course_id          String                @db.Uuid
+  section_number     Int
+  semester           enum_courses_semester
+  year               Int
+  instructor_id      String                @db.Uuid
+  capacity           Int
+  enrolled_count     Int                   @default(0)
+  schedule_json      Json?
+  created_at         DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime              @updatedAt @db.Timestamptz(6)
+  deleted_at         DateTime?             @db.Timestamptz(6)
+  attendanceSessions attendance_sessions[]
+  courses            courses               @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  enrollments        enrollments[]
+
+  @@index([course_id], map: "sections_course_id")
+  @@index([instructor_id], map: "sections_instructor_id")
+}
+
+model course_prerequisites {
+  id                     String  @id @default(uuid()) @db.Uuid
+  course_id              String  @db.Uuid
+  prerequisite_course_id String  @db.Uuid
+  courses                courses @relation("CoursePrerequisiteCourse", fields: [course_id], references: [id], onDelete: Cascade)
+  prerequisite           courses @relation("CoursePrerequisitePrereq", fields: [prerequisite_course_id], references: [id], onDelete: Cascade)
+
+  @@index([course_id], map: "prereq_course_id")
+  @@index([prerequisite_course_id], map: "prereq_prerequisite_id")
+}
+
+model enrollments {
+  id              String          @id @default(uuid()) @db.Uuid
+  student_id      String          @db.Uuid
+  section_id      String          @db.Uuid
+  status          String          @default("active")
+  enrollment_date DateTime        @default(now()) @db.Timestamptz(6)
+  midterm_grade   Float?
+  final_grade     Float?
+  letter_grade    String?
+  grade_point     Float?
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime        @updatedAt @db.Timestamptz(6)
+  section         course_sections @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  student         Student         @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@index([student_id], map: "enrollments_student_id")
+  @@index([section_id], map: "enrollments_section_id")
+}
+
+model attendance_sessions {
+  id                String               @id @default(uuid()) @db.Uuid
+  section_id        String               @db.Uuid
+  instructor_id     String               @db.Uuid
+  date              DateTime             @db.Date
+  start_time        DateTime             @db.Timestamptz(6)
+  end_time          DateTime             @db.Timestamptz(6)
+  latitude          Float
+  longitude         Float
+  geofence_radius   Float                @default(15)
+  qr_code           String?
+  status            String               @default("active")
+  created_at        DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime             @updatedAt @db.Timestamptz(6)
+  attendanceRecords attendance_records[]
+  section           course_sections      @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  excuseRequests    excuse_requests[]
+
+  @@index([section_id], map: "attendance_sessions_section_id")
+  @@index([instructor_id], map: "attendance_sessions_instructor_id")
+}
+
+model attendance_records {
+  id                   String              @id @default(uuid()) @db.Uuid
+  session_id           String              @db.Uuid
+  student_id           String              @db.Uuid
+  check_in_time        DateTime            @db.Timestamptz(6)
+  latitude             Float
+  longitude            Float
+  distance_from_center Float
+  is_flagged           Boolean             @default(false)
+  flag_reason          String?
+  created_at           DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime            @updatedAt @db.Timestamptz(6)
+  session              attendance_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  student              Student             @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@index([session_id], map: "attendance_records_session_id")
+  @@index([student_id], map: "attendance_records_student_id")
+}
+
+model excuse_requests {
+  id           String              @id @default(uuid()) @db.Uuid
+  student_id   String              @db.Uuid
+  session_id   String              @db.Uuid
+  reason       String
+  document_url String?
+  status       String              @default("pending")
+  reviewed_by  String?
+  reviewed_at  DateTime?
+  notes        String?
+  created_at   DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime            @updatedAt @db.Timestamptz(6)
+  session      attendance_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  student      Student             @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@index([student_id], map: "excuse_requests_student_id")
+  @@index([session_id], map: "excuse_requests_session_id")
+}
+
+model classrooms {
+  id            String   @id @default(uuid()) @db.Uuid
+  building      String
+  room_number   String
+  capacity      Int
+  features_json Json?
+  latitude      Float?
+  longitude     Float?
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @updatedAt @db.Timestamptz(6)
 }
 
 enum enum_courses_semester {

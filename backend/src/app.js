@@ -11,10 +11,37 @@ const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
 const usersRouter = require('./routes/users');
 const departmentsRouter = require('./routes/departments');
+const coursesRouter = require('./routes/courses');
+const attendanceRouter = require('./routes/attendance');
+const studentRouter = require('./routes/student');
+const facultyRouter = require('./routes/faculty');
 
 const app = express();
 
-// Security headers
+// JSON ve urlencoded body parser (en üstte)
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+
+// CORS configuration (tek tanım)
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://34.77.59.225',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  },
+  credentials: true
+}));
+
+// Security headers (isteğe bağlı)
 // app.use(helmet({
 //   crossOriginResourcePolicy: false,
 //   crossOriginEmbedderPolicy: false
@@ -32,30 +59,15 @@ app.use(rateLimit({
   max: 100
 }));
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
-
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-
-// Serve static files (uploads)
-app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
-  setHeaders: (res, path, stat) => {
-    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.set('Access-Control-Allow-Origin', '*');
-  }
-}));
-
 // Routes
 app.use('/api/v1', indexRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', usersRouter);
 app.use('/api/v1/departments', departmentsRouter);
+app.use('/api/v1/courses', coursesRouter);
+app.use('/api/v1/attendance', attendanceRouter);
+app.use('/api/v1/student', studentRouter);
+app.use('/api/v1/faculty', facultyRouter);
 
 // Error handler (must be last)
 app.use(errorHandler);
