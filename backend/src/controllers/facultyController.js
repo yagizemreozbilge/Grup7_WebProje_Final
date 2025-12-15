@@ -1,8 +1,9 @@
 const prisma = require('../prisma');
+const gradeService = require('../services/gradeService');
 
 // Yoklama başlat
 exports.startAttendance = async (req, res) => {
-    console.log('BODY:', req.body);
+  console.log('BODY:', req.body);
   try {
     // Gerekli parametreleri alın (sectionId, date, startTime, endTime, latitude, longitude)
     const { sectionId, date, startTime, endTime, latitude, longitude } = req.body;
@@ -25,5 +26,94 @@ exports.startAttendance = async (req, res) => {
   } catch (err) {
     console.error('Yoklama başlatılamadı HATA:', err);
     res.status(500).json({ error: 'Yoklama başlatılamadı', details: err.message });
+  }
+};
+
+/**
+ * Enter grade for a student in a section
+ * POST /faculty/grades
+ * Body: { sectionId, studentId, midtermGrade, finalGrade }
+ */
+exports.enterGrade = async (req, res) => {
+  try {
+    const { sectionId, studentId, midtermGrade, finalGrade } = req.body;
+
+    if (!sectionId || !studentId) {
+      return res.status(400).json({ error: 'sectionId and studentId are required' });
+    }
+
+    if (midtermGrade === undefined || finalGrade === undefined) {
+      return res.status(400).json({ error: 'Both midtermGrade and finalGrade are required' });
+    }
+
+    const result = await gradeService.enterGrade({
+      sectionId,
+      studentId,
+      midtermGrade: parseFloat(midtermGrade),
+      finalGrade: parseFloat(finalGrade)
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Grade entered successfully',
+      data: result
+    });
+  } catch (err) {
+    console.error('Grade entry error:', err);
+    res.status(400).json({
+      success: false,
+      error: err.message
+    });
+  }
+};
+
+/**
+ * Get all students and their grades for a section
+ * GET /faculty/grades/:sectionId
+ */
+exports.getSectionGrades = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+
+    if (!sectionId) {
+      return res.status(400).json({ error: 'sectionId is required' });
+    }
+
+    const grades = await gradeService.getSectionGrades(sectionId);
+
+    res.status(200).json(grades);
+  } catch (err) {
+    console.error('Get section grades error:', err);
+    res.status(500).json({
+      error: 'Failed to retrieve grades',
+      details: err.message
+    });
+  }
+};
+
+exports.getMySections = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    // Find faculty profile
+    const faculty = await prisma.faculty.findFirst({
+      where: { userId: userId }
+    });
+    if (!faculty) {
+      return res.status(404).json({ error: 'Öğretim görevlisi profili bulunamadı' });
+    }
+
+    const sections = await prisma.course_sections.findMany({
+      where: { instructor_id: faculty.id },
+      include: { courses: true }
+    });
+
+    res.json(sections.map(s => ({
+      id: s.id,
+      courseCode: s.courses.code,
+      courseName: s.courses.name,
+      sectionNumber: s.section_number
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

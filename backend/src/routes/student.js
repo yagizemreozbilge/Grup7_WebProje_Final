@@ -8,6 +8,11 @@ const studentController = require('../controllers/studentController');
 router.get('/grades', authenticate, studentController.getGrades);
 // Öğrencinin kayıtlı dersleri
 router.get('/my-courses', authenticate, studentController.getMyCourses);
+// Kayıt için uygun dersler
+router.get('/available-courses', authenticate, studentController.getAvailableCourses);
+// Öğrencinin yoklama geçmişi
+router.get('/attendance', authenticate, studentController.getMyAttendance);
+router.get('/attendance-summary', authenticate, studentController.getAttendanceSummary); // Added attendance summary route
 
 // Part 2: Enroll and Drop
 router.post('/enroll', authenticate, studentController.enrollCourse);

@@ -142,6 +142,7 @@ model courses {
   deleted_at       DateTime?              @db.Timestamptz(6)
   created_at       DateTime               @db.Timestamptz(6)
   updated_at       DateTime               @db.Timestamptz(6)
+  attendance_limit Int                    @default(4)
   prerequisitesFor course_prerequisites[] @relation("CoursePrerequisiteCourse")
   isPrerequisiteOf course_prerequisites[] @relation("CoursePrerequisitePrereq")
   sections         course_sections[]
@@ -206,7 +207,7 @@ model enrollments {
 model attendance_sessions {
   id                String               @id @default(uuid()) @db.Uuid
   section_id        String               @db.Uuid
-  instructor_id     String               @db.Uuid
+  instructor_id     String?              @db.Uuid
   date              DateTime             @db.Date
   start_time        DateTime             @db.Timestamptz(6)
   end_time          DateTime             @db.Timestamptz(6)

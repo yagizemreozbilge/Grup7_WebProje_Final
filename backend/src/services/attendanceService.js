@@ -60,12 +60,18 @@ module.exports = {
     // 1. Dersi alan tüm öğrencileri bul
     const enrollments = await prisma.enrollments.findMany({
       where: { section_id: sectionId, status: 'active' },
-      include: { student: { include: { user: true } } }
+      include: {
+        student: {
+          include: {
+            user: true
+          }
+        }
+      }
     });
 
     // 2. Bu section için toplam oturum sayısını bul
     const totalSessions = await prisma.attendance_sessions.count({
-      where: { section_id: sectionId, status: 'ended' } // Sadece bitmiş oturumlar? veya hepsi
+      where: { section_id: sectionId }
     });
 
     // 3. Her öğrenci için rapor oluştur
@@ -76,7 +82,6 @@ module.exports = {
       if (!student) continue;
 
       // Öğrencinin katıldığı oturumları say
-      // Bu sorgu optimize edilebilir ama şimdilik döngü içinde basit tutalım
       const presentCount = await prisma.attendance_records.count({
         where: {
           student_id: student.id,
@@ -89,6 +94,7 @@ module.exports = {
       const absencePercent = totalSessions > 0 ? (absenceCount / totalSessions) * 100 : 0;
 
       report.push({
+        studentId: student.id,
         studentNumber: student.studentNumber || 'N/A',
         fullName: student.user ? student.user.fullName : 'Bilinmiyor',
         presentCount,

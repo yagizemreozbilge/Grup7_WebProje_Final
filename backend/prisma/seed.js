@@ -39,10 +39,10 @@ async function main() {
       await prisma.department.upsert({
         where: { id: dept.id },
         update: {},
-        create: { 
-          id: dept.id, 
-          name: dept.name, 
-          code: dept.code, 
+        create: {
+          id: dept.id,
+          name: dept.name,
+          code: dept.code,
           facultyName: dept.facultyName, // şemada facultyName var, map("faculty")
           createdAt: now, // şemada createdAt var, map("created_at")
           updated_at: now // şemada updated_at var
@@ -127,11 +127,11 @@ async function main() {
   }
 
   const students = [
-    { email: 'student1@campus.edu.tr', number: '20210001', dept: deptCE },
-    { email: 'student2@campus.edu.tr', number: '20210002', dept: deptCE },
-    { email: 'student3@campus.edu.tr', number: '20210003', dept: deptEE },
-    { email: 'student4@campus.edu.tr', number: '20210004', dept: deptEE },
-    { email: 'student5@campus.edu.tr', number: '20210005', dept: deptME }
+    { email: 'student1@campus.edu.tr', number: '20210001', dept: deptCE, fullName: 'Ahmet Yılmaz' },
+    { email: 'student2@campus.edu.tr', number: '20210002', dept: deptCE, fullName: 'Ayşe Demir' },
+    { email: 'student3@campus.edu.tr', number: '20210003', dept: deptEE, fullName: 'Mehmet Kaya' },
+    { email: 'student4@campus.edu.tr', number: '20210004', dept: deptEE, fullName: 'Fatma Şahin' },
+    { email: 'student5@campus.edu.tr', number: '20210005', dept: deptME, fullName: 'Ali Çelik' }
   ];
 
   for (const student of students) {
@@ -143,7 +143,7 @@ async function main() {
           email: student.email,
           passwordHash: password,
           role: 'student',
-          fullName: student.email.split('@')[0],
+          fullName: student.fullName,
           isVerified: true,
           createdAt: now,
           updatedAt: now,
@@ -207,10 +207,54 @@ async function main() {
       instructor_id: faculty1.id,
       capacity: 30,
       enrolled_count: 0,
-      created_at: now,
       updated_at: now
     }
   });
+
+  // Enroll student1 in the section as an example
+  const student1User = await prisma.user.findUnique({ where: { email: 'student1@campus.edu.tr' } });
+  if (student1User) {
+    const student1 = await prisma.student.findUnique({ where: { userId: student1User.id } });
+    if (student1) {
+      // Create enrollment with grades
+      await prisma.enrollments.upsert({
+        where: {
+          id: '22222222-aaaa-bbbb-cccc-222222222222'
+        },
+        update: {
+          midterm_grade: 85,
+          final_grade: 90,
+          letter_grade: 'BA',
+          grade_point: 3.5,
+          status: 'completed'
+        },
+        create: {
+          id: '22222222-aaaa-bbbb-cccc-222222222222',
+          student_id: student1.id,
+          section_id: '11111111-aaaa-bbbb-cccc-111111111111',
+          status: 'completed',
+          midterm_grade: 85,
+          final_grade: 90,
+          letter_grade: 'BA',
+          grade_point: 3.5,
+          enrollment_date: now,
+          created_at: now,
+          updated_at: now
+        }
+      });
+
+      // Update student GPA/CGPA
+      // CENG101 has 4 credits, grade point 3.5
+      // GPA = (3.5 * 4) / 4 = 3.5
+      await prisma.student.update({
+        where: { id: student1.id },
+        data: {
+          gpa: 3.5,
+          cgpa: 3.5
+        }
+      });
+    }
+  }
 
   console.log('Seed completed');
 }
