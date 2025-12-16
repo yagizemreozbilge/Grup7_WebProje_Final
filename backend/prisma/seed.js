@@ -169,91 +169,116 @@ async function main() {
   }
 
   // --- Seed a course and a section for Computer Engineering ---
-  // Find faculty1 user and faculty
-  const faculty1User = await prisma.user.findUnique({ where: { email: 'faculty1@campus.edu.tr' } });
-  const faculty1 = await prisma.faculty.findUnique({ where: { userId: faculty1User.id } });
+  // Bu blok isteğe bağlı örnek veriler içindir; hata alındığında tüm seed'in çökmesini engellemek için try/catch ile sarıldı.
+  try {
+    // Find faculty1 user and faculty
+    const faculty1User = await prisma.user.findUnique({
+      where: { email: 'faculty1@campus.edu.tr' }
+    });
 
-  // Create a course for Computer Engineering (CENG)
-  const courseCENG101 = await prisma.courses.upsert({
-    where: { code: 'CENG101' },
-    update: {},
-    create: {
-      id: '11111111-cccc-dddd-eeee-111111111111',
-      code: 'CENG101',
-      name: 'Introduction to Computer Engineering',
-      description: 'Basic concepts of computer engineering.',
-      credits: 4,
-      department_id: deptCE,
-      semester: 'fall',
-      year: 2025,
-      is_active: true,
-      created_at: now,
-      updated_at: now
-    }
-  });
-
-  // Create a section for this course, assigned to faculty1
-  await prisma.course_sections.upsert({
-    where: {
-      id: '11111111-aaaa-bbbb-cccc-111111111111'
-    },
-    update: {},
-    create: {
-      id: '11111111-aaaa-bbbb-cccc-111111111111',
-      course_id: courseCENG101.id,
-      section_number: 1,
-      semester: 'fall',
-      year: 2025,
-      instructor_id: faculty1.id,
-      capacity: 30,
-      enrolled_count: 0,
-      updated_at: now
-    }
-  });
-
-  // Enroll student1 in the section as an example
-  const student1User = await prisma.user.findUnique({ where: { email: 'student1@campus.edu.tr' } });
-  if (student1User) {
-    const student1 = await prisma.student.findUnique({ where: { userId: student1User.id } });
-    if (student1) {
-      // Create enrollment with grades
-      await prisma.enrollments.upsert({
-        where: {
-          id: '22222222-aaaa-bbbb-cccc-222222222222'
-        },
-        update: {
-          midterm_grade: 85,
-          final_grade: 90,
-          letter_grade: 'BA',
-          grade_point: 3.5,
-          status: 'completed'
-        },
-        create: {
-          id: '22222222-aaaa-bbbb-cccc-222222222222',
-          student_id: student1.id,
-          section_id: '11111111-aaaa-bbbb-cccc-111111111111',
-          status: 'completed',
-          midterm_grade: 85,
-          final_grade: 90,
-          letter_grade: 'BA',
-          grade_point: 3.5,
-          enrollment_date: now,
-          created_at: now,
-          updated_at: now
-        }
+    if (!faculty1User) {
+      console.warn('faculty1@campus.edu.tr kullanıcısı bulunamadı, örnek ders/section seed atlanıyor.');
+    } else {
+      const faculty1 = await prisma.faculty.findUnique({
+        where: { userId: faculty1User.id }
       });
 
-      // Update student GPA/CGPA
-      // CENG101 has 4 credits, grade point 3.5
-      // GPA = (3.5 * 4) / 4 = 3.5
-      await prisma.student.update({
-        where: { id: student1.id },
-        data: {
-          gpa: 3.5,
-          cgpa: 3.5
+      if (!faculty1) {
+        console.warn('Faculty kaydı bulunamadı, örnek ders/section seed atlanıyor.');
+      } else {
+        // Create a course for Computer Engineering (CENG)
+        const courseCENG101 = await prisma.courses.upsert({
+          where: { code: 'CENG101' },
+          update: {},
+          create: {
+            id: '11111111-cccc-dddd-eeee-111111111111',
+            code: 'CENG101',
+            name: 'Introduction to Computer Engineering',
+            description: 'Basic concepts of computer engineering.',
+            credits: 4,
+            department_id: deptCE,
+            semester: 'fall',
+            year: 2025,
+            is_active: true,
+            created_at: now,
+            updated_at: now
+          }
+        });
+
+        // Create a section for this course, assigned to faculty1
+        await prisma.course_sections.upsert({
+          where: {
+            id: '11111111-aaaa-bbbb-cccc-111111111111'
+          },
+          update: {},
+          create: {
+            id: '11111111-aaaa-bbbb-cccc-111111111111',
+            course_id: courseCENG101.id,
+            section_number: 1,
+            semester: 'fall',
+            year: 2025,
+            instructor_id: faculty1.id,
+            capacity: 30,
+            enrolled_count: 0,
+            updated_at: now
+          }
+        });
+
+        // Enroll student1 in the section as an example
+        const student1User = await prisma.user.findUnique({
+          where: { email: 'student1@campus.edu.tr' }
+        });
+
+        if (student1User) {
+          const student1 = await prisma.student.findUnique({
+            where: { userId: student1User.id }
+          });
+
+          if (student1) {
+            // Create enrollment with grades
+            await prisma.enrollments.upsert({
+              where: {
+                id: '22222222-aaaa-bbbb-cccc-222222222222'
+              },
+              update: {
+                midterm_grade: 85,
+                final_grade: 90,
+                letter_grade: 'BA',
+                grade_point: 3.5,
+                status: 'completed'
+              },
+              create: {
+                id: '22222222-aaaa-bbbb-cccc-222222222222',
+                student_id: student1.id,
+                section_id: '11111111-aaaa-bbbb-cccc-111111111111',
+                status: 'completed',
+                midterm_grade: 85,
+                final_grade: 90,
+                letter_grade: 'BA',
+                grade_point: 3.5,
+                enrollment_date: now,
+                created_at: now,
+                updated_at: now
+              }
+            });
+
+            // Update student GPA/CGPA
+            // CENG101 has 4 credits, grade point 3.5
+            // GPA = (3.5 * 4) / 4 = 3.5
+            await prisma.student.update({
+              where: { id: student1.id },
+              data: {
+                gpa: 3.5,
+                cgpa: 3.5
+              }
+            });
+          }
         }
-      });
+      }
     }
+  } catch (e) {
+    // Bu kısım tamamen demo amaçlı olduğu için, hata alındığında loglayıp devam ediyoruz.
+    console.error('Optional course/section/enrollment seed sırasında hata alındı, atlanıyor:', e.message);
   }
 
   console.log('Seed completed');
