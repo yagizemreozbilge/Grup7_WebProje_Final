@@ -1,19 +1,19 @@
 const request = require('supertest');
 const express = require('express');
 
-// 🔹 Mock middlewares
-jest.mock('../../src/middleware/auth', () => ({
+// 🔹 Mock middlewares - Klasör derinliğine göre yollar güncellendi (3 kat yukarı)
+jest.mock('../../../src/middleware/auth', () => ({
   authenticate: (req, res, next) => next()
 }));
 
-jest.mock('../../src/middleware/validation', () => ({
+jest.mock('../../../src/middleware/validation', () => ({
   validateRegister: (req, res, next) => next(),
   validateLogin: (req, res, next) => next(),
   validateResetPassword: (req, res, next) => next()
 }));
 
-// 🔹 Mock controller
-jest.mock('../../src/controllers/authController', () => ({
+// 🔹 Mock controller - Klasör derinliğine göre yollar güncellendi (3 kat yukarı)
+jest.mock('../../../src/controllers/authController', () => ({
   register: (req, res) => res.status(201).json({ route: 'register' }),
   verifyEmail: (req, res) => res.json({ route: 'verify-email' }),
   login: (req, res) => res.json({ route: 'login' }),
@@ -23,7 +23,7 @@ jest.mock('../../src/controllers/authController', () => ({
   logout: (req, res) => res.json({ route: 'logout' })
 }));
 
-const authRoutes = require('../../src/routes/auth');
+const authRoutes = require('../../../src/routes/auth');
 
 describe('Auth Routes - unit tests', () => {
   const app = express();

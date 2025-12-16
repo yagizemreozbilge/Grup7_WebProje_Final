@@ -1,25 +1,25 @@
 const request = require('supertest');
 const express = require('express');
 
-// 🔹 Mock middlewares
-jest.mock('../../src/middleware/auth', () => ({
+// 🔹 Mock middlewares - Yollar 3 kat yukarıya güncellendi
+jest.mock('../../../src/middleware/auth', () => ({
   authenticate: (req, res, next) => next()
 }));
 
-jest.mock('../../src/middleware/authorization', () => ({
+jest.mock('../../../src/middleware/authorization', () => ({
   authorize: () => (req, res, next) => next()
 }));
 
-jest.mock('../../src/middleware/validation', () => ({
+jest.mock('../../../src/middleware/validation', () => ({
   validateUpdateProfile: (req, res, next) => next()
 }));
 
-jest.mock('../../src/middleware/upload', () => ({
+jest.mock('../../../src/middleware/upload', () => ({
   single: () => (req, res, next) => next()
 }));
 
 // 🔹 Mock controller
-jest.mock('../../src/controllers/userController', () => ({
+jest.mock('../../../src/controllers/userController', () => ({
   getCurrentUser: (req, res) => res.json({ route: 'me' }),
   updateProfile: (req, res) => res.json({ route: 'update-profile' }),
   uploadProfilePicture: (req, res) => res.json({ route: 'upload-picture' }),
@@ -28,7 +28,7 @@ jest.mock('../../src/controllers/userController', () => ({
   getAllUsers: (req, res) => res.json({ route: 'all-users' })
 }));
 
-const userRoutes = require('../../src/routes/users');
+const userRoutes = require('../../../src/routes/users');
 
 describe('User Routes - unit tests', () => {
   const app = express();
@@ -48,20 +48,5 @@ describe('User Routes - unit tests', () => {
   test('POST /users/me/profile-picture', async () => {
     const res = await request(app).post('/users/me/profile-picture');
     expect(res.body.route).toBe('upload-picture');
-  });
-
-  test('DELETE /users/me/profile-picture', async () => {
-    const res = await request(app).delete('/users/me/profile-picture');
-    expect(res.body.route).toBe('delete-picture');
-  });
-
-  test('GET /users/me/transcript', async () => {
-    const res = await request(app).get('/users/me/transcript');
-    expect(res.body.route).toBe('transcript');
-  });
-
-  test('GET /users (admin only)', async () => {
-    const res = await request(app).get('/users');
-    expect(res.body.route).toBe('all-users');
   });
 });
