@@ -30,6 +30,10 @@ model User {
   passwordResetTokens        PasswordResetToken[]
   refreshTokens              RefreshToken[]
   student                    Student?
+  mealReservations           MealReservation[]
+  wallet                     Wallet?
+  eventRegistrations         EventRegistration[]
+  classroomReservations      ClassroomReservation[]
 
   @@map("users")
 }
@@ -169,6 +173,7 @@ model course_sections {
   attendanceSessions attendance_sessions[]
   courses            courses               @relation(fields: [course_id], references: [id], onDelete: Cascade)
   enrollments        enrollments[]
+  schedules          Schedule[]
 
   @@index([course_id], map: "sections_course_id")
   @@index([instructor_id], map: "sections_instructor_id")
@@ -265,15 +270,17 @@ model excuse_requests {
 }
 
 model classrooms {
-  id            String   @id @default(uuid()) @db.Uuid
+  id            String                 @id @default(uuid()) @db.Uuid
   building      String
   room_number   String
   capacity      Int
   features_json Json?
   latitude      Float?
   longitude     Float?
-  created_at    DateTime @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime @updatedAt @db.Timestamptz(6)
+  created_at    DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime               @updatedAt @db.Timestamptz(6)
+  schedules     Schedule[]
+  reservations  ClassroomReservation[]
 }
 
 enum enum_courses_semester {
@@ -286,4 +293,246 @@ enum enum_users_role {
   student
   faculty
   admin
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+}
+
+enum MealReservationStatus {
+  reserved
+  used
+  cancelled
+}
+
+enum TransactionType {
+  credit
+  debit
+}
+
+enum TransactionReferenceType {
+  topup
+  meal_reservation
+  event_registration
+  refund
+}
+
+enum EventCategory {
+  conference
+  workshop
+  social
+  sports
+  academic
+  cultural
+}
+
+enum EventStatus {
+  draft
+  published
+  cancelled
+  completed
+}
+
+enum DayOfWeek {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
+enum ReservationStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+// ============================================
+// MEAL SERVICE MODELS
+// ============================================
+
+model Cafeteria {
+  id           String            @id @default(uuid()) @db.Uuid
+  name         String            @db.VarChar(255)
+  location     String            @db.VarChar(255)
+  capacity     Int
+  created_at   DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime          @updatedAt @db.Timestamptz(6)
+  menus        MealMenu[]
+  reservations MealReservation[]
+
+  @@map("cafeterias")
+}
+
+model MealMenu {
+  id             String            @id @default(uuid()) @db.Uuid
+  cafeteria_id   String            @map("cafeteria_id") @db.Uuid
+  date           DateTime          @db.Date
+  meal_type      MealType          @map("meal_type")
+  items_json     Json              @map("items_json")
+  nutrition_json Json?             @map("nutrition_json")
+  is_published   Boolean           @default(false) @map("is_published")
+  created_at     DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime          @updatedAt @db.Timestamptz(6)
+  cafeteria      Cafeteria         @relation(fields: [cafeteria_id], references: [id], onDelete: Cascade)
+  reservations   MealReservation[]
+
+  @@index([cafeteria_id, date, meal_type], map: "meal_menus_cafeteria_date_type")
+  @@map("meal_menus")
+}
+
+model MealReservation {
+  id           String                @id @default(uuid()) @db.Uuid
+  user_id      String                @map("user_id") @db.Uuid
+  menu_id      String                @map("menu_id") @db.Uuid
+  cafeteria_id String                @map("cafeteria_id") @db.Uuid
+  meal_type    MealType              @map("meal_type")
+  date         DateTime              @db.Date
+  amount       Decimal               @db.Decimal(10, 2)
+  qr_code      String                @unique @map("qr_code") @db.VarChar(255)
+  status       MealReservationStatus @default(reserved)
+  used_at      DateTime?             @map("used_at") @db.Timestamptz(6)
+  created_at   DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime              @updatedAt @db.Timestamptz(6)
+  user         User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  menu         MealMenu              @relation(fields: [menu_id], references: [id], onDelete: Cascade)
+  cafeteria    Cafeteria             @relation(fields: [cafeteria_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, date], map: "meal_reservations_user_date")
+  @@index([qr_code], map: "meal_reservations_qr_code")
+  @@map("meal_reservations")
+}
+
+// ============================================
+// WALLET MODELS
+// ============================================
+
+model Wallet {
+  id           String        @id @default(uuid()) @db.Uuid
+  user_id      String        @unique @map("user_id") @db.Uuid
+  balance      Decimal       @default(0) @db.Decimal(10, 2)
+  currency     String        @default("TRY") @db.VarChar(10)
+  is_active    Boolean       @default(true) @map("is_active")
+  created_at   DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime      @updatedAt @db.Timestamptz(6)
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@map("wallets")
+}
+
+model Transaction {
+  id             String                   @id @default(uuid()) @db.Uuid
+  wallet_id      String                   @map("wallet_id") @db.Uuid
+  type           TransactionType
+  amount         Decimal                  @db.Decimal(10, 2)
+  balance_after  Decimal                  @map("balance_after") @db.Decimal(10, 2)
+  reference_type TransactionReferenceType @map("reference_type")
+  reference_id   String?                  @map("reference_id") @db.Uuid
+  description    String?                  @db.Text
+  created_at     DateTime                 @default(now()) @db.Timestamptz(6)
+  wallet         Wallet                   @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
+
+  @@index([wallet_id], map: "transactions_wallet_id")
+  @@index([reference_type, reference_id], map: "transactions_reference")
+  @@map("transactions")
+}
+
+// ============================================
+// EVENT MODELS
+// ============================================
+
+model Event {
+  id                    String              @id @default(uuid()) @db.Uuid
+  title                 String              @db.VarChar(255)
+  description           String?             @db.Text
+  category              EventCategory
+  date                  DateTime            @db.Date
+  start_time            String              @map("start_time") @db.VarChar(10)
+  end_time              String              @map("end_time") @db.VarChar(10)
+  location              String              @db.VarChar(255)
+  capacity              Int
+  registered_count      Int                 @default(0) @map("registered_count")
+  registration_deadline DateTime            @map("registration_deadline") @db.Timestamptz(6)
+  is_paid               Boolean             @default(false) @map("is_paid")
+  price                 Decimal?            @db.Decimal(10, 2)
+  status                EventStatus         @default(draft)
+  created_at            DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime            @updatedAt @db.Timestamptz(6)
+  registrations         EventRegistration[]
+
+  @@index([category, date], map: "events_category_date")
+  @@index([status], map: "events_status")
+  @@map("events")
+}
+
+model EventRegistration {
+  id                 String    @id @default(uuid()) @db.Uuid
+  event_id           String    @map("event_id") @db.Uuid
+  user_id            String    @map("user_id") @db.Uuid
+  registration_date  DateTime  @default(now()) @map("registration_date") @db.Timestamptz(6)
+  qr_code            String    @unique @map("qr_code") @db.VarChar(255)
+  checked_in         Boolean   @default(false) @map("checked_in")
+  checked_in_at      DateTime? @map("checked_in_at") @db.Timestamptz(6)
+  custom_fields_json Json?     @map("custom_fields_json")
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @updatedAt @db.Timestamptz(6)
+  event              Event     @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([event_id], map: "event_registrations_event_id")
+  @@index([user_id], map: "event_registrations_user_id")
+  @@index([qr_code], map: "event_registrations_qr_code")
+  @@map("event_registrations")
+}
+
+// ============================================
+// SCHEDULING MODELS
+// ============================================
+
+model Schedule {
+  id           String          @id @default(uuid()) @db.Uuid
+  section_id   String          @map("section_id") @db.Uuid
+  day_of_week  DayOfWeek       @map("day_of_week")
+  start_time   String          @map("start_time") @db.VarChar(10)
+  end_time     String          @map("end_time") @db.VarChar(10)
+  classroom_id String          @map("classroom_id") @db.Uuid
+  created_at   DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime        @updatedAt @db.Timestamptz(6)
+  section      course_sections @relation(fields: [section_id], references: [id], onDelete: Cascade)
+  classroom    classrooms      @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
+
+  @@index([section_id], map: "schedules_section_id")
+  @@index([classroom_id, day_of_week], map: "schedules_classroom_day")
+  @@map("schedules")
+}
+
+// ============================================
+// CLASSROOM RESERVATION MODELS
+// ============================================
+
+model ClassroomReservation {
+  id           String            @id @default(uuid()) @db.Uuid
+  classroom_id String            @map("classroom_id") @db.Uuid
+  user_id      String            @map("user_id") @db.Uuid
+  date         DateTime          @db.Date
+  start_time   String            @map("start_time") @db.VarChar(10)
+  end_time     String            @map("end_time") @db.VarChar(10)
+  purpose      String            @db.VarChar(255)
+  status       ReservationStatus @default(pending)
+  approved_by  String?           @map("approved_by") @db.Uuid
+  created_at   DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime          @updatedAt @db.Timestamptz(6)
+  classroom    classrooms        @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([classroom_id, date], map: "reservations_classroom_date")
+  @@index([user_id], map: "reservations_user_id")
+  @@index([status], map: "reservations_status")
+  @@map("reservations")
 }

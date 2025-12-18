@@ -281,6 +281,246 @@ async function main() {
     console.error('Optional course/section/enrollment seed sırasında hata alındı, atlanıyor:', e.message);
   }
 
+  // ============================================
+  // PART 3: MEAL SERVICE, EVENTS, SCHEDULING
+  // ============================================
+
+  // Cafeterias
+  let cafeteria1 = await prisma.cafeteria.findUnique({
+    where: { id: 'cafe1111-1111-1111-1111-111111111111' }
+  });
+  if (!cafeteria1) {
+    cafeteria1 = await prisma.cafeteria.create({
+      data: {
+        id: 'cafe1111-1111-1111-1111-111111111111',
+        name: 'Ana Kafeterya',
+        location: 'Merkez Bina, Zemin Kat',
+        capacity: 500
+      }
+    });
+  }
+
+  let cafeteria2 = await prisma.cafeteria.findUnique({
+    where: { id: 'cafe2222-2222-2222-2222-222222222222' }
+  });
+  if (!cafeteria2) {
+    cafeteria2 = await prisma.cafeteria.create({
+      data: {
+        id: 'cafe2222-2222-2222-2222-222222222222',
+        name: 'Mühendislik Fakültesi Kafeteryası',
+        location: 'Mühendislik Fakültesi, 1. Kat',
+        capacity: 300
+      }
+    });
+  }
+
+  // Meal Menus (today and tomorrow)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // Check if menu already exists
+  let lunchMenu1 = await prisma.mealMenu.findFirst({
+    where: {
+      cafeteria_id: cafeteria1.id,
+      date: today,
+      meal_type: 'lunch'
+    }
+  });
+
+  if (!lunchMenu1) {
+    lunchMenu1 = await prisma.mealMenu.create({
+      data: {
+        cafeteria_id: cafeteria1.id,
+        date: today,
+        meal_type: 'lunch',
+        items_json: {
+          main: 'Tavuk Izgara',
+          side: 'Pilav, Salata',
+          dessert: 'Sütlaç',
+          vegan: false,
+          vegetarian: false
+        },
+        nutrition_json: {
+          calories: 650,
+          protein: 45,
+          carbs: 60,
+          fat: 20
+        },
+        is_published: true
+      }
+    });
+  }
+
+  let dinnerMenu1 = await prisma.mealMenu.findFirst({
+    where: {
+      cafeteria_id: cafeteria1.id,
+      date: today,
+      meal_type: 'dinner'
+    }
+  });
+
+  if (!dinnerMenu1) {
+    dinnerMenu1 = await prisma.mealMenu.create({
+      data: {
+        cafeteria_id: cafeteria1.id,
+        date: today,
+        meal_type: 'dinner',
+        items_json: {
+          main: 'Balık Tava',
+          side: 'Makarna, Sebze',
+          dessert: 'Meyve',
+          vegan: false,
+          vegetarian: false
+        },
+        nutrition_json: {
+          calories: 580,
+          protein: 35,
+          carbs: 55,
+          fat: 18
+        },
+        is_published: true
+      }
+    });
+  }
+
+  // Wallets for all users
+  const allUsers = await prisma.user.findMany();
+  for (const user of allUsers) {
+    await prisma.wallet.upsert({
+      where: { user_id: user.id },
+      update: {},
+      create: {
+        user_id: user.id,
+        balance: user.role === 'student' ? 100 : 0, // Students start with 100 TRY
+        currency: 'TRY',
+        is_active: true
+      }
+    });
+  }
+
+  // Events
+  let event1 = await prisma.event.findFirst({
+    where: { title: 'Yazılım Geliştirme Workshop' }
+  });
+  if (!event1) {
+    event1 = await prisma.event.create({
+      data: {
+      title: 'Yazılım Geliştirme Workshop',
+      description: 'Modern yazılım geliştirme teknikleri ve best practices',
+      category: 'workshop',
+      date: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days from today
+      start_time: '14:00',
+      end_time: '17:00',
+      location: 'Konferans Salonu A',
+      capacity: 50,
+      registered_count: 0,
+      registration_deadline: new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000),
+      is_paid: false,
+        status: 'published'
+      }
+    });
+  }
+
+  let event2 = await prisma.event.findFirst({
+    where: { title: 'Basketbol Turnuvası' }
+  });
+  if (!event2) {
+    event2 = await prisma.event.create({
+      data: {
+      title: 'Basketbol Turnuvası',
+      description: 'Kampüs basketbol turnuvası final maçı',
+      category: 'sports',
+      date: new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000), // 14 days from today
+      start_time: '18:00',
+      end_time: '20:00',
+      location: 'Spor Salonu',
+      capacity: 200,
+      registered_count: 0,
+      registration_deadline: new Date(today.getTime() + 12 * 24 * 60 * 60 * 1000),
+      is_paid: true,
+        price: 25.00,
+        status: 'published'
+      }
+    });
+  }
+
+  // Classrooms (if not exists)
+  let classroom1 = await prisma.classrooms.findFirst({
+    where: { 
+      building: 'Merkez Bina',
+      room_number: 'A101'
+    }
+  });
+  if (!classroom1) {
+    classroom1 = await prisma.classrooms.create({
+      data: {
+      building: 'Merkez Bina',
+      room_number: 'A101',
+      capacity: 50,
+      features_json: {
+        projector: true,
+        whiteboard: true,
+        computer: true,
+        airConditioning: true
+      },
+      latitude: 41.0082,
+        longitude: 28.9784
+      }
+    });
+  }
+
+  let classroom2 = await prisma.classrooms.findFirst({
+    where: {
+      building: 'Mühendislik Fakültesi',
+      room_number: 'B205'
+    }
+  });
+  if (!classroom2) {
+    classroom2 = await prisma.classrooms.create({
+      data: {
+      building: 'Mühendislik Fakültesi',
+      room_number: 'B205',
+      capacity: 80,
+      features_json: {
+        projector: true,
+        whiteboard: true,
+        computer: true,
+        airConditioning: true,
+        lab: true
+      },
+      latitude: 41.0085,
+        longitude: 28.9787
+      }
+    });
+  }
+
+  let classroom3 = await prisma.classrooms.findFirst({
+    where: {
+      building: 'Fen Edebiyat Fakültesi',
+      room_number: 'C301'
+    }
+  });
+  if (!classroom3) {
+    classroom3 = await prisma.classrooms.create({
+      data: {
+      building: 'Fen Edebiyat Fakültesi',
+      room_number: 'C301',
+      capacity: 100,
+      features_json: {
+        projector: true,
+        whiteboard: true,
+        computer: true,
+        airConditioning: true,
+        soundSystem: true
+      },
+      latitude: 41.0088,
+        longitude: 28.9790
+      }
+    });
+  }
+
   console.log('Seed completed');
 }
 

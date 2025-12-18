@@ -15,6 +15,11 @@ const coursesRouter = require('./routes/courses');
 const attendanceRouter = require('./routes/attendance');
 const studentRouter = require('./routes/student');
 const facultyRouter = require('./routes/faculty');
+const mealsRouter = require('./routes/meals');
+const walletRouter = require('./routes/wallet');
+const eventsRouter = require('./routes/events');
+const schedulingRouter = require('./routes/scheduling');
+const reservationsRouter = require('./routes/reservations');
 
 const app = express();
 
@@ -26,17 +31,22 @@ app.use(cookieParser());
 // CORS configuration (tek tanım)
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001',
   'http://34.77.59.225',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 app.use(cors({
   origin: function (origin, callback) {
+    // Development ortamında tüm localhost portlarına izin ver
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS: ' + origin));
     }
+    // localhost'un herhangi bir portuna izin ver (development için)
+    if (origin && origin.startsWith('http://localhost:')) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS: ' + origin));
   },
   credentials: true
 }));
@@ -68,6 +78,11 @@ app.use('/api/v1/courses', coursesRouter);
 app.use('/api/v1/attendance', attendanceRouter);
 app.use('/api/v1/student', studentRouter);
 app.use('/api/v1/faculty', facultyRouter);
+app.use('/api/v1/meals', mealsRouter);
+app.use('/api/v1/wallet', walletRouter);
+app.use('/api/v1/events', eventsRouter);
+app.use('/api/v1/scheduling', schedulingRouter);
+app.use('/api/v1/reservations', reservationsRouter);
 
 // Error handler (must be last)
 app.use(errorHandler);

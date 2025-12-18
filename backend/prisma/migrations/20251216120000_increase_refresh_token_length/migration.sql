@@ -3,3 +3,4 @@ ALTER TABLE "refresh_tokens"
 ALTER COLUMN "token" TYPE TEXT;
 
 
+
