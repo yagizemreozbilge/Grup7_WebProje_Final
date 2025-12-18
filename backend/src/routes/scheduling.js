@@ -11,3 +11,4 @@ router.get('/my-schedule/ical', authenticate, schedulingController.getMySchedule
 
 module.exports = router;
 
+

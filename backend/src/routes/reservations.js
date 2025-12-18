@@ -11,3 +11,4 @@ router.put('/:id/reject', authenticate, authorize(['admin']), reservationsContro
 
 module.exports = router;
 
+

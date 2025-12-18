@@ -254,3 +254,4 @@ ALTER TABLE "reservations" ADD CONSTRAINT "reservations_classroom_id_fkey" FOREI
 -- AddForeignKey
 ALTER TABLE "reservations" ADD CONSTRAINT "reservations_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+

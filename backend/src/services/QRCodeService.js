@@ -1,12 +1,19 @@
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 
 class QRCodeService {
+  /**
+   * Generate UUID v4
+   */
+  static generateUUID() {
+    return crypto.randomUUID();
+  }
+
   /**
    * Generate a unique QR code for meal reservation
    * Format: MEAL-{UUID}
    */
   static generateMealQRCode() {
-    return `MEAL-${uuidv4()}`;
+    return `MEAL-${this.generateUUID()}`;
   }
 
   /**
@@ -14,7 +21,7 @@ class QRCodeService {
    * Format: EVENT-{UUID}
    */
   static generateEventQRCode() {
-    return `EVENT-${uuidv4()}`;
+    return `EVENT-${this.generateUUID()}`;
   }
 
   /**
