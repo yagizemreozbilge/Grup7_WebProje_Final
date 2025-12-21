@@ -20,3 +20,4 @@ router.post('/:eventId/registrations/:regId/checkin', authenticate, authorize(['
 module.exports = router;
 
 
+

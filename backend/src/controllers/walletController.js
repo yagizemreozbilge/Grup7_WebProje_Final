@@ -66,6 +66,18 @@ const walletController = {
         `Wallet top-up - ${amount} TRY`
       );
 
+      // Store pending transaction (optional, for tracking)
+      await prisma.transaction.create({
+        data: {
+          wallet_id: wallet.id,
+          type: 'credit',
+          amount: amount,
+          balance_after: wallet.balance,
+          reference_type: 'topup',
+          description: `Pending top-up - ${paymentSession.sessionId}`
+        }
+      });
+
       res.status(200).json({
         success: true,
         data: {
