@@ -4,6 +4,7 @@ const reservationsController = require('../controllers/reservationsController');
 const { authenticate } = require('../middleware/auth');
 const { authorize } = require('../middleware/authorization');
 
+router.get('/classrooms', authenticate, reservationsController.getClassrooms);
 router.post('/', authenticate, reservationsController.createReservation);
 router.get('/', authenticate, reservationsController.getReservations);
 router.put('/:id/approve', authenticate, authorize(['admin']), reservationsController.approveReservation);

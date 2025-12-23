@@ -85,6 +85,22 @@ const reservationsController = {
     }
   },
 
+  // Get available classrooms
+  async getClassrooms(req, res, next) {
+    try {
+      const classrooms = await prisma.classrooms.findMany({
+        orderBy: [
+          { building: 'asc' },
+          { room_number: 'asc' }
+        ]
+      });
+
+      res.status(200).json({ success: true, data: classrooms });
+    } catch (error) {
+      next(error);
+    }
+  },
+
   // Get reservations
   async getReservations(req, res, next) {
     try {

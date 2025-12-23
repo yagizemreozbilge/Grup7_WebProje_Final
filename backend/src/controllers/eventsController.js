@@ -29,7 +29,7 @@ const eventsController = {
         where,
         orderBy: [
           { date: 'asc' },
-          { start_time: 'asc' }
+          { startTime: 'asc' }
         ]
       });
 
@@ -50,8 +50,8 @@ const eventsController = {
           registrations: {
             select: {
               id: true,
-              user_id: true,
-              checked_in: true
+              userId: true,
+              checkedIn: true
             }
           }
         }
@@ -91,13 +91,13 @@ const eventsController = {
           description,
           category,
           date: new Date(date),
-          start_time,
-          end_time,
+          startTime: start_time,
+          endTime: end_time,
           location,
           capacity,
-          registered_count: 0,
-          registration_deadline: new Date(registration_deadline),
-          is_paid: is_paid || false,
+          registeredCount: 0,
+          registrationDeadline: new Date(registration_deadline),
+          isPaid: is_paid || false,
           price: is_paid ? price : null,
           status: status || 'draft'
         }
@@ -119,13 +119,28 @@ const eventsController = {
         updateData.date = new Date(updateData.date);
       }
 
-      if (updateData.registration_deadline) {
-        updateData.registration_deadline = new Date(updateData.registration_deadline);
+      // Map snake_case to camelCase for Prisma
+      const mappedData = {};
+      if (updateData.start_time) mappedData.startTime = updateData.start_time;
+      if (updateData.end_time) mappedData.endTime = updateData.end_time;
+      if (updateData.registration_deadline) mappedData.registrationDeadline = new Date(updateData.registration_deadline);
+      if (updateData.is_paid !== undefined) mappedData.isPaid = updateData.is_paid;
+      if (updateData.registered_count !== undefined) mappedData.registeredCount = updateData.registered_count;
+      
+      // Copy other fields
+      Object.keys(updateData).forEach(key => {
+        if (!['start_time', 'end_time', 'registration_deadline', 'is_paid', 'registered_count'].includes(key)) {
+          mappedData[key] = updateData[key];
+        }
+      });
+
+      if (mappedData.date) {
+        mappedData.date = new Date(mappedData.date);
       }
 
       const event = await prisma.event.update({
         where: { id },
-        data: updateData
+        data: mappedData
       });
 
       res.status(200).json({ success: true, data: event });
@@ -169,20 +184,20 @@ const eventsController = {
       }
 
       // Check capacity
-      if (event.registered_count >= event.capacity) {
+      if (event.registeredCount >= event.capacity) {
         return res.status(400).json({ success: false, error: 'Event is full' });
       }
 
       // Check registration deadline
-      if (new Date() > new Date(event.registration_deadline)) {
+      if (new Date() > new Date(event.registrationDeadline)) {
         return res.status(400).json({ success: false, error: 'Registration deadline has passed' });
       }
 
       // Check if already registered
       const existingRegistration = await prisma.eventRegistration.findFirst({
         where: {
-          event_id: id,
-          user_id: userId
+          eventId: id,
+          userId: userId
         }
       });
 
@@ -191,9 +206,9 @@ const eventsController = {
       }
 
       // If paid, check wallet balance
-      if (event.is_paid && event.price > 0) {
+      if (event.isPaid && event.price > 0) {
         const wallet = await prisma.wallet.findUnique({
-          where: { user_id: userId }
+          where: { userId: userId }
         });
 
         if (!wallet || wallet.balance < event.price) {
@@ -212,10 +227,10 @@ const eventsController = {
         // Create registration
         const registration = await tx.eventRegistration.create({
           data: {
-            event_id: id,
-            user_id: userId,
-            qr_code: qrCode,
-            custom_fields_json: custom_fields || null
+            eventId: id,
+            userId: userId,
+            qrCode: qrCode,
+            customFieldsJson: custom_fields || null
           },
           include: {
             user: {
@@ -228,18 +243,18 @@ const eventsController = {
           }
         });
 
-        // Update registered_count (atomic)
+        // Update registeredCount (atomic)
         await tx.event.update({
           where: { id },
           data: {
-            registered_count: {
+            registeredCount: {
               increment: 1
             }
           }
         });
 
         // If paid, deduct from wallet
-        if (event.is_paid && event.price > 0) {
+        if (event.isPaid && event.price > 0) {
           const wallet = await prisma.wallet.findUnique({
             where: { user_id: userId }
           });
@@ -288,11 +303,11 @@ const eventsController = {
         return res.status(404).json({ success: false, error: 'Registration not found' });
       }
 
-      if (registration.user_id !== userId) {
+      if (registration.userId !== userId) {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
-      if (registration.checked_in) {
+      if (registration.checkedIn) {
         return res.status(400).json({
           success: false,
           error: 'Cannot cancel checked-in registration'
@@ -306,20 +321,20 @@ const eventsController = {
           where: { id: regId }
         });
 
-        // Update registered_count
+        // Update registeredCount
         await tx.event.update({
           where: { id: eventId },
           data: {
-            registered_count: {
+            registeredCount: {
               decrement: 1
             }
           }
         });
 
         // If paid, refund
-        if (registration.event.is_paid && registration.event.price > 0) {
+        if (registration.event.isPaid && registration.event.price > 0) {
           const wallet = await prisma.wallet.findUnique({
-            where: { user_id: userId }
+            where: { userId: userId }
           });
 
           if (wallet) {
@@ -343,12 +358,36 @@ const eventsController = {
         await NotificationService.sendEmail(
           user.email,
           'Etkinlik Kaydı İptal Edildi',
-          `Etkinlik kaydınız iptal edilmiştir.${registration.event.is_paid ? ' Ücret cüzdanınıza iade edilmiştir.' : ''}`
+          `Etkinlik kaydınız iptal edilmiştir.${registration.event.isPaid ? ' Ücret cüzdanınıza iade edilmiştir.' : ''}`
         );
       }
 
       res.status(200).json({ success: true, message: 'Registration cancelled successfully' });
     } catch (error) {
+      next(error);
+    }
+  },
+
+  // Get current user's event registrations
+  async getMyRegistrations(req, res, next) {
+    try {
+      const userId = req.user.id;
+      console.log('🔍 [getMyRegistrations] User ID:', userId);
+
+      const registrations = await prisma.eventRegistration.findMany({
+        where: { userId: userId },
+        include: {
+          event: true
+        },
+        orderBy: { registrationDate: 'desc' }
+      });
+
+      console.log('✅ [getMyRegistrations] Found registrations:', registrations.length);
+      console.log('📋 [getMyRegistrations] Registrations:', JSON.stringify(registrations, null, 2));
+
+      res.status(200).json({ success: true, data: registrations });
+    } catch (error) {
+      console.error('❌ [getMyRegistrations] Error:', error);
       next(error);
     }
   },
@@ -359,7 +398,7 @@ const eventsController = {
       const { id } = req.params;
 
       const registrations = await prisma.eventRegistration.findMany({
-        where: { event_id: id },
+        where: { eventId: id },
         include: {
           user: {
             select: {
@@ -369,7 +408,7 @@ const eventsController = {
             }
           }
         },
-        orderBy: { registration_date: 'desc' }
+        orderBy: { registrationDate: 'desc' }
       });
 
       res.status(200).json({ success: true, data: registrations });
@@ -382,7 +421,7 @@ const eventsController = {
   async checkIn(req, res, next) {
     try {
       const { eventId, regId } = req.params;
-      const { qr_code } = req.body;
+      const { qrCode } = req.body;
 
       const registration = await prisma.eventRegistration.findUnique({
         where: { id: regId },
@@ -402,16 +441,16 @@ const eventsController = {
         return res.status(404).json({ success: false, error: 'Registration not found' });
       }
 
-      if (registration.event_id !== eventId) {
+      if (registration.eventId !== eventId) {
         return res.status(400).json({ success: false, error: 'Registration does not match event' });
       }
 
       // Validate QR code
-      if (registration.qr_code !== qr_code) {
+      if (registration.qrCode !== qrCode) {
         return res.status(400).json({ success: false, error: 'Invalid QR code' });
       }
 
-      if (registration.checked_in) {
+      if (registration.checkedIn) {
         return res.status(400).json({
           success: false,
           error: 'Already checked in'
@@ -422,8 +461,8 @@ const eventsController = {
       const updatedRegistration = await prisma.eventRegistration.update({
         where: { id: regId },
         data: {
-          checked_in: true,
-          checked_in_at: new Date()
+          checkedIn: true,
+          checkedInAt: new Date()
         }
       });
 

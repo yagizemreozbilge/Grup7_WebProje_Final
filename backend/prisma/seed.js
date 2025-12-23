@@ -1,7 +1,6 @@
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
-const { v4: uuidv4 } = require('uuid');
 
 const prisma = new PrismaClient();
 
@@ -158,13 +157,13 @@ async function main() {
         description: 'Yapay zeka teknolojilerinin güncel durumu ve geleceği hakkında kapsamlı bir konferans. Alanında uzman konuşmacılar ve pratik uygulamalar.',
         category: 'conference',
         date: eventDates[0],
-        start_time: '10:00',
-        end_time: '17:00',
+        startTime: '10:00',
+        endTime: '17:00',
         location: 'Konferans Salonu A',
         capacity: 200,
-        registered_count: 0,
-        registration_deadline: new Date(eventDates[0].getTime() - 24 * 60 * 60 * 1000),
-        is_paid: false,
+        registeredCount: 0,
+        registrationDeadline: new Date(eventDates[0].getTime() - 24 * 60 * 60 * 1000),
+        isPaid: false,
         price: null,
         status: 'published'
       },
@@ -173,13 +172,13 @@ async function main() {
         description: 'React ve Node.js kullanarak modern web uygulamaları geliştirme workshop\'u. Hands-on coding deneyimi.',
         category: 'workshop',
         date: eventDates[1],
-        start_time: '14:00',
-        end_time: '18:00',
+        startTime: '14:00',
+        endTime: '18:00',
         location: 'Bilgisayar Laboratuvarı B201',
         capacity: 30,
-        registered_count: 0,
-        registration_deadline: new Date(eventDates[1].getTime() - 12 * 60 * 60 * 1000),
-        is_paid: false,
+        registeredCount: 0,
+        registrationDeadline: new Date(eventDates[1].getTime() - 12 * 60 * 60 * 1000),
+        isPaid: false,
         price: null,
         status: 'published'
       },
@@ -188,13 +187,13 @@ async function main() {
         description: 'Futbol, basketbol ve voleybol turnuvaları. Tüm öğrenciler ve personel katılabilir.',
         category: 'sports',
         date: eventDates[2],
-        start_time: '09:00',
-        end_time: '18:00',
+        startTime: '09:00',
+        endTime: '18:00',
         location: 'Spor Kompleksi',
         capacity: 500,
-        registered_count: 0,
-        registration_deadline: new Date(eventDates[2].getTime() - 48 * 60 * 60 * 1000),
-        is_paid: false,
+        registeredCount: 0,
+        registrationDeadline: new Date(eventDates[2].getTime() - 48 * 60 * 60 * 1000),
+        isPaid: false,
         price: null,
         status: 'published'
       },
@@ -203,13 +202,13 @@ async function main() {
         description: 'Akademik kariyer yapmak isteyen öğrenciler için seminer ve networking etkinliği.',
         category: 'academic',
         date: eventDates[3],
-        start_time: '13:00',
-        end_time: '16:00',
+        startTime: '13:00',
+        endTime: '16:00',
         location: 'Konferans Salonu B',
         capacity: 150,
-        registered_count: 0,
-        registration_deadline: new Date(eventDates[3].getTime() - 24 * 60 * 60 * 1000),
-        is_paid: false,
+        registeredCount: 0,
+        registrationDeadline: new Date(eventDates[3].getTime() - 24 * 60 * 60 * 1000),
+        isPaid: false,
         price: null,
         status: 'published'
       },
@@ -218,13 +217,13 @@ async function main() {
         description: 'Müzik, tiyatro ve görsel sanatlar festivali. Öğrenci kulüpleri ve misafir sanatçılar.',
         category: 'cultural',
         date: eventDates[4],
-        start_time: '11:00',
-        end_time: '20:00',
+        startTime: '11:00',
+        endTime: '20:00',
         location: 'Açık Hava Amfisi',
         capacity: 1000,
-        registered_count: 0,
-        registration_deadline: new Date(eventDates[4].getTime() - 72 * 60 * 60 * 1000),
-        is_paid: false,
+        registeredCount: 0,
+        registrationDeadline: new Date(eventDates[4].getTime() - 72 * 60 * 60 * 1000),
+        isPaid: false,
         price: null,
         status: 'published'
       },
@@ -233,20 +232,30 @@ async function main() {
         description: 'Yeni öğrenciler için tanışma ve kaynaşma etkinliği. Müzik, yemek ve eğlence.',
         category: 'social',
         date: eventDates[0],
-        start_time: '18:00',
-        end_time: '22:00',
+        startTime: '18:00',
+        endTime: '22:00',
         location: 'Öğrenci Merkezi',
         capacity: 300,
-        registered_count: 0,
-        registration_deadline: new Date(eventDates[0].getTime() - 6 * 60 * 60 * 1000),
-        is_paid: false,
+        registeredCount: 0,
+        registrationDeadline: new Date(eventDates[0].getTime() - 6 * 60 * 60 * 1000),
+        isPaid: false,
         price: null,
         status: 'published'
       }
     ];
 
-    for (const eventData of events) {
-      const eventId = uuidv4();
+    const eventIds = [
+      '11111111-1111-1111-1111-111111111111',
+      '22222222-2222-2222-2222-222222222222',
+      '33333333-3333-3333-3333-333333333333',
+      '44444444-4444-4444-4444-444444444444',
+      '55555555-5555-5555-5555-555555555555',
+      '66666666-6666-6666-6666-666666666666'
+    ];
+
+    for (let i = 0; i < events.length; i++) {
+      const eventData = events[i];
+      const eventId = eventIds[i];
       
       await prisma.event.upsert({
         where: { id: eventId },
@@ -263,6 +272,50 @@ async function main() {
     console.log(`Created ${events.length} events.`);
   }
 
+  // Classrooms
+  const classroomIds = [
+    '11111111-1111-1111-1111-111111111111',
+    '22222222-2222-2222-2222-222222222222',
+    '33333333-3333-3333-3333-333333333333',
+    '44444444-4444-4444-4444-444444444444',
+    '55555555-5555-5555-5555-555555555555',
+    '66666666-6666-6666-6666-666666666666',
+    '77777777-7777-7777-7777-777777777777',
+    '88888888-8888-8888-8888-888888888888',
+    '99999999-9999-9999-9999-999999999999',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    'dddddddd-dddd-dddd-dddd-dddddddddddd'
+  ];
+
+  const classrooms = [
+    { id: classroomIds[0], building: 'A Blok', room_number: '101', capacity: 50 },
+    { id: classroomIds[1], building: 'A Blok', room_number: '102', capacity: 50 },
+    { id: classroomIds[2], building: 'A Blok', room_number: '201', capacity: 80 },
+    { id: classroomIds[3], building: 'A Blok', room_number: '202', capacity: 80 },
+    { id: classroomIds[4], building: 'A Blok', room_number: '301', capacity: 100 },
+    { id: classroomIds[5], building: 'B Blok', room_number: '101', capacity: 60 },
+    { id: classroomIds[6], building: 'B Blok', room_number: '102', capacity: 60 },
+    { id: classroomIds[7], building: 'B Blok', room_number: '201', capacity: 40 },
+    { id: classroomIds[8], building: 'B Blok', room_number: '202', capacity: 40 },
+    { id: classroomIds[9], building: 'C Blok', room_number: '101', capacity: 120 },
+    { id: classroomIds[10], building: 'C Blok', room_number: '102', capacity: 120 },
+    { id: classroomIds[11], building: 'C Blok', room_number: '201', capacity: 30 },
+    { id: classroomIds[12], building: 'C Blok', room_number: '202', capacity: 30 }
+  ];
+
+  for (const classroomData of classrooms) {
+    await prisma.classrooms.upsert({
+      where: { id: classroomData.id },
+      update: {},
+      create: classroomData
+    }).catch((err) => {
+      console.log(`Classroom ${classroomData.building} ${classroomData.room_number} could not be created:`, err.message);
+    });
+  }
+
+  console.log(`Created ${classrooms.length} classrooms.`);
   console.log('Seed completed successfully for Part 3.');
 }
 

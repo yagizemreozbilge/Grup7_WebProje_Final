@@ -31,15 +31,15 @@ router.get('/:sessionId', async (req, res) => {
     let paymentAmount = 0;
     try {
       const wallet = await prisma.wallet.findUnique({
-        where: { user_id: userId }
+        where: { userId: userId }
       });
       if (wallet) {
         const pendingTransaction = await prisma.transaction.findFirst({
           where: {
-            wallet_id: wallet.id,
+            walletId: wallet.id,
             description: { contains: sessionId }
           },
-          orderBy: { created_at: 'desc' }
+          orderBy: { createdAt: 'desc' }
         });
         if (pendingTransaction) {
           paymentAmount = pendingTransaction.amount;

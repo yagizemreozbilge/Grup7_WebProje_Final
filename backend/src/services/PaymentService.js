@@ -10,9 +10,13 @@ class PaymentService {
     // For now, return a mock payment URL
     const sessionId = `payment_${Date.now()}_${userId}`;
 
+    // Use relative path or frontend URL - frontend nginx will proxy to backend
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const paymentUrl = `${frontendUrl}/payment/${sessionId}`;
+
     return {
       sessionId,
-      paymentUrl: `${process.env.PAYMENT_GATEWAY_URL || 'http://34.77.59.225'}/payment/${sessionId}`,
+      paymentUrl,
       amount,
       currency,
       expiresAt: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
