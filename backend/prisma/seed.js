@@ -112,13 +112,13 @@ async function main() {
   const users = await prisma.user.findMany();
   for (const user of users) {
     await prisma.wallet.upsert({
-      where: { user_id: user.id },
+      where: { userId: user.id },
       update: {},
       create: {
-        user_id: user.id,
+        userId: user.id,
         balance: user.role === 'student' ? 100.0 : 0.0,
         currency: 'TRY',
-        is_active: true
+        isActive: true
       }
     });
   }
@@ -128,12 +128,12 @@ async function main() {
   today.setHours(0, 0, 0, 0);
   await prisma.mealMenu.create({
     data: {
-      cafeteria_id: cafeteria.id,
+      cafeteriaId: cafeteria.id,
       date: today,
-      meal_type: 'lunch',
-      items_json: { main: 'Tavuk Izgara', side: 'Pilav', dessert: 'Sütlaç' },
-      nutrition_json: { calories: 650, protein: 45 },
-      is_published: true
+      mealType: 'lunch',
+      itemsJson: { main: 'Tavuk Izgara', side: 'Pilav', dessert: 'Sütlaç' },
+      nutritionJson: { calories: 650, protein: 45 },
+      isPublished: true
     }
   }).catch(() => console.log("Today's menu already exists."));
 

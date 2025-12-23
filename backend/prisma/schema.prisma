@@ -370,19 +370,19 @@ model Cafeteria {
 }
 
 model MealMenu {
-  id             String            @id @default(uuid()) @db.Uuid
-  cafeteria_id   String            @map("cafeteria_id") @db.Uuid
-  date           DateTime          @db.Date
-  meal_type      MealType          @map("meal_type")
-  items_json     Json              @map("items_json")
-  nutrition_json Json?             @map("nutrition_json")
-  is_published   Boolean           @default(false) @map("is_published")
-  created_at     DateTime          @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime          @updatedAt @db.Timestamptz(6)
-  cafeteria      Cafeteria         @relation(fields: [cafeteria_id], references: [id], onDelete: Cascade)
-  reservations   MealReservation[]
+  id            String            @id @default(uuid()) @db.Uuid
+  cafeteriaId  String            @map("cafeteria_id") @db.Uuid
+  date          DateTime          @db.Date
+  mealType      MealType          @map("meal_type")
+  itemsJson     Json              @map("items_json")
+  nutritionJson Json?            @map("nutrition_json")
+  isPublished   Boolean          @default(false) @map("is_published")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  cafeteria     Cafeteria         @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
+  reservations  MealReservation[]
 
-  @@index([cafeteria_id, date, meal_type], map: "meal_menus_cafeteria_date_type")
+  @@index([cafeteriaId, date, mealType], map: "meal_menus_cafeteria_date_type")
   @@map("meal_menus")
 }
 
