@@ -1,5 +1,7 @@
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
+const { v4: uuidv4 } = require('uuid');
 
 const prisma = new PrismaClient();
 
@@ -134,6 +136,132 @@ async function main() {
       is_published: true
     }
   }).catch(() => console.log("Today's menu already exists."));
+
+  // Events
+  const adminUser = await prisma.user.findUnique({
+    where: { email: adminEmail }
+  });
+
+  if (adminUser) {
+    // Gelecek tarihlerde etkinlikler oluştur
+    const eventDates = [
+      new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 gün sonra
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 hafta sonra
+      new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 gün sonra
+      new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 2 hafta sonra
+      new Date(Date.now() + 21 * 24 * 60 * 60 * 1000), // 3 hafta sonra
+    ];
+
+    const events = [
+      {
+        title: 'Yapay Zeka ve Makine Öğrenmesi Konferansı',
+        description: 'Yapay zeka teknolojilerinin güncel durumu ve geleceği hakkında kapsamlı bir konferans. Alanında uzman konuşmacılar ve pratik uygulamalar.',
+        category: 'conference',
+        date: eventDates[0],
+        start_time: '10:00',
+        end_time: '17:00',
+        location: 'Konferans Salonu A',
+        capacity: 200,
+        registered_count: 0,
+        registration_deadline: new Date(eventDates[0].getTime() - 24 * 60 * 60 * 1000),
+        is_paid: false,
+        price: null,
+        status: 'published'
+      },
+      {
+        title: 'Web Geliştirme Workshop',
+        description: 'React ve Node.js kullanarak modern web uygulamaları geliştirme workshop\'u. Hands-on coding deneyimi.',
+        category: 'workshop',
+        date: eventDates[1],
+        start_time: '14:00',
+        end_time: '18:00',
+        location: 'Bilgisayar Laboratuvarı B201',
+        capacity: 30,
+        registered_count: 0,
+        registration_deadline: new Date(eventDates[1].getTime() - 12 * 60 * 60 * 1000),
+        is_paid: false,
+        price: null,
+        status: 'published'
+      },
+      {
+        title: 'Kampüs Spor Turnuvası',
+        description: 'Futbol, basketbol ve voleybol turnuvaları. Tüm öğrenciler ve personel katılabilir.',
+        category: 'sports',
+        date: eventDates[2],
+        start_time: '09:00',
+        end_time: '18:00',
+        location: 'Spor Kompleksi',
+        capacity: 500,
+        registered_count: 0,
+        registration_deadline: new Date(eventDates[2].getTime() - 48 * 60 * 60 * 1000),
+        is_paid: false,
+        price: null,
+        status: 'published'
+      },
+      {
+        title: 'Akademik Kariyer Günleri',
+        description: 'Akademik kariyer yapmak isteyen öğrenciler için seminer ve networking etkinliği.',
+        category: 'academic',
+        date: eventDates[3],
+        start_time: '13:00',
+        end_time: '16:00',
+        location: 'Konferans Salonu B',
+        capacity: 150,
+        registered_count: 0,
+        registration_deadline: new Date(eventDates[3].getTime() - 24 * 60 * 60 * 1000),
+        is_paid: false,
+        price: null,
+        status: 'published'
+      },
+      {
+        title: 'Kültür ve Sanat Festivali',
+        description: 'Müzik, tiyatro ve görsel sanatlar festivali. Öğrenci kulüpleri ve misafir sanatçılar.',
+        category: 'cultural',
+        date: eventDates[4],
+        start_time: '11:00',
+        end_time: '20:00',
+        location: 'Açık Hava Amfisi',
+        capacity: 1000,
+        registered_count: 0,
+        registration_deadline: new Date(eventDates[4].getTime() - 72 * 60 * 60 * 1000),
+        is_paid: false,
+        price: null,
+        status: 'published'
+      },
+      {
+        title: 'Öğrenci Sosyal Etkinliği',
+        description: 'Yeni öğrenciler için tanışma ve kaynaşma etkinliği. Müzik, yemek ve eğlence.',
+        category: 'social',
+        date: eventDates[0],
+        start_time: '18:00',
+        end_time: '22:00',
+        location: 'Öğrenci Merkezi',
+        capacity: 300,
+        registered_count: 0,
+        registration_deadline: new Date(eventDates[0].getTime() - 6 * 60 * 60 * 1000),
+        is_paid: false,
+        price: null,
+        status: 'published'
+      }
+    ];
+
+    for (const eventData of events) {
+      const eventId = uuidv4();
+      
+      await prisma.event.upsert({
+        where: { id: eventId },
+        update: {},
+        create: {
+          id: eventId,
+          ...eventData
+        }
+      }).catch((err) => {
+        console.log(`Event "${eventData.title}" could not be created:`, err.message);
+      });
+    }
+
+    console.log(`Created ${events.length} events.`);
+  }
 
   console.log('Seed completed successfully for Part 3.');
 }
