@@ -9,10 +9,10 @@ class PaymentService {
     // TODO: Integrate with Stripe or PayTR
     // For now, return a mock payment URL
     const sessionId = `payment_${Date.now()}_${userId}`;
-    
+
     return {
       sessionId,
-      paymentUrl: `${process.env.PAYMENT_GATEWAY_URL || 'http://localhost:5000'}/payment/${sessionId}`,
+      paymentUrl: `${process.env.PAYMENT_GATEWAY_URL || 'http://34.77.59.225'}/payment/${sessionId}`,
       amount,
       currency,
       expiresAt: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
