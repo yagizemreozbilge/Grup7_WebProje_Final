@@ -55,12 +55,12 @@ class PaymentService {
       // Create transaction record
       const transaction = await tx.transaction.create({
         data: {
-          wallet_id: walletId,
+          walletId: walletId,
           type: 'credit',
           amount,
-          balance_after: updatedWallet.balance,
-          reference_type: referenceType,
-          reference_id: referenceId,
+          balanceAfter: updatedWallet.balance,
+          referenceType: referenceType,
+          referenceId: referenceId,
           description
         }
       });
@@ -100,12 +100,12 @@ class PaymentService {
       // Create transaction record
       const transaction = await tx.transaction.create({
         data: {
-          wallet_id: walletId,
+          walletId: walletId,
           type: 'debit',
           amount,
-          balance_after: updatedWallet.balance,
-          reference_type: referenceType,
-          reference_id: referenceId,
+          balanceAfter: updatedWallet.balance,
+          referenceType: referenceType,
+          referenceId: referenceId,
           description
         }
       });
@@ -123,6 +123,8 @@ class PaymentService {
 }
 
 module.exports = PaymentService;
+
+
 
 
 

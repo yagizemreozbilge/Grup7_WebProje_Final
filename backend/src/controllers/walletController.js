@@ -8,17 +8,17 @@ const walletController = {
       const userId = req.user.id;
 
       let wallet = await prisma.wallet.findUnique({
-        where: { user_id: userId }
+        where: { userId: userId }
       });
 
       // Create wallet if doesn't exist
       if (!wallet) {
         wallet = await prisma.wallet.create({
           data: {
-            user_id: userId,
+            userId: userId,
             balance: 0,
             currency: 'TRY',
-            is_active: true
+            isActive: true
           }
         });
       }
@@ -44,16 +44,16 @@ const walletController = {
 
       // Get or create wallet
       let wallet = await prisma.wallet.findUnique({
-        where: { user_id: userId }
+        where: { userId: userId }
       });
 
       if (!wallet) {
         wallet = await prisma.wallet.create({
           data: {
-            user_id: userId,
+            userId: userId,
             balance: 0,
             currency: 'TRY',
-            is_active: true
+            isActive: true
           }
         });
       }
@@ -69,11 +69,11 @@ const walletController = {
       // Store pending transaction (optional, for tracking)
       await prisma.transaction.create({
         data: {
-          wallet_id: wallet.id,
+          walletId: wallet.id,
           type: 'credit',
           amount: amount,
-          balance_after: wallet.balance,
-          reference_type: 'topup',
+          balanceAfter: wallet.balance,
+          referenceType: 'topup',
           description: `Pending top-up - ${paymentSession.sessionId}`
         }
       });
@@ -117,7 +117,7 @@ const walletController = {
 
       // Process payment
       const wallet = await prisma.wallet.findUnique({
-        where: { user_id: userId }
+        where: { userId: userId }
       });
 
       if (!wallet) {
@@ -155,21 +155,21 @@ const walletController = {
       const { page = 1, limit = 20, type } = req.query;
 
       const wallet = await prisma.wallet.findUnique({
-        where: { user_id: userId }
+        where: { userId: userId }
       });
 
       if (!wallet) {
         return res.status(404).json({ success: false, error: 'Wallet not found' });
       }
 
-      const where = { wallet_id: wallet.id };
+      const where = { walletId: wallet.id };
       if (type) {
         where.type = type;
       }
 
       const transactions = await prisma.transaction.findMany({
         where,
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: parseInt(limit)
       });
