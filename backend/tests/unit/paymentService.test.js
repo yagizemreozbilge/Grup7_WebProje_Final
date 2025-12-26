@@ -1,4 +1,4 @@
-﻿jest.mock('../../src/prisma', () => ({
+jest.mock('../../src/prisma', () => ({
     wallet: {
         findUnique: jest.fn(),
         update: jest.fn()

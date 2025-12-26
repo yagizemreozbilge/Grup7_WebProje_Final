@@ -388,23 +388,23 @@ model MealMenu {
 
 model MealReservation {
   id           String                @id @default(uuid()) @db.Uuid
-  user_id      String                @map("user_id") @db.Uuid
-  menu_id      String                @map("menu_id") @db.Uuid
-  cafeteria_id String                @map("cafeteria_id") @db.Uuid
-  meal_type    MealType              @map("meal_type")
+  userId       String                @map("user_id") @db.Uuid
+  menuId       String                @map("menu_id") @db.Uuid
+  cafeteriaId  String                @map("cafeteria_id") @db.Uuid
+  mealType     MealType              @map("meal_type")
   date         DateTime              @db.Date
   amount       Decimal               @db.Decimal(10, 2)
-  qr_code      String                @unique @map("qr_code") @db.VarChar(255)
+  qrCode       String                @unique @map("qr_code") @db.VarChar(255)
   status       MealReservationStatus @default(reserved)
-  used_at      DateTime?             @map("used_at") @db.Timestamptz(6)
-  created_at   DateTime              @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime              @updatedAt @db.Timestamptz(6)
-  user         User                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  menu         MealMenu              @relation(fields: [menu_id], references: [id], onDelete: Cascade)
-  cafeteria    Cafeteria             @relation(fields: [cafeteria_id], references: [id], onDelete: Cascade)
+  usedAt       DateTime?             @map("used_at") @db.Timestamptz(6)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menu         MealMenu              @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  cafeteria    Cafeteria             @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
 
-  @@index([user_id, date], map: "meal_reservations_user_date")
-  @@index([qr_code], map: "meal_reservations_qr_code")
+  @@index([userId, date], map: "meal_reservations_user_date")
+  @@index([qrCode], map: "meal_reservations_qr_code")
   @@map("meal_reservations")
 }
 

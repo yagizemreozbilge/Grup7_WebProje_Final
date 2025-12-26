@@ -122,19 +122,53 @@ async function main() {
     });
   }
 
-  // Meal Menus
+  // Meal Menus - Create menus for next 7 days
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  await prisma.mealMenu.create({
-    data: {
-      cafeteriaId: cafeteria.id,
-      date: today,
-      mealType: 'lunch',
-      itemsJson: { main: 'Tavuk Izgara', side: 'Pilav', dessert: 'Sütlaç' },
-      nutritionJson: { calories: 650, protein: 45 },
-      isPublished: true
+  
+  const mealTypes = ['breakfast', 'lunch', 'dinner'];
+  const mealMenus = [
+    { main: 'Omlet', side: 'Peynir, Zeytin, Domates', dessert: 'Reçel', calories: 450, protein: 20 },
+    { main: 'Tavuk Izgara', side: 'Pilav, Salata', dessert: 'Sütlaç', calories: 650, protein: 45 },
+    { main: 'Köfte', side: 'Makarna, Salata', dessert: 'Baklava', calories: 700, protein: 50 }
+  ];
+
+  let createdMenus = 0;
+  for (let day = 0; day < 7; day++) {
+    const menuDate = new Date(today);
+    menuDate.setDate(today.getDate() + day);
+    
+    for (let i = 0; i < mealTypes.length; i++) {
+      const mealType = mealTypes[i];
+      const mealMenu = mealMenus[i];
+      
+      try {
+        await prisma.mealMenu.create({
+          data: {
+            cafeteriaId: cafeteria.id,
+            date: menuDate,
+            mealType: mealType,
+            itemsJson: { 
+              main: mealMenu.main, 
+              side: mealMenu.side, 
+              dessert: mealMenu.dessert 
+            },
+            nutritionJson: { 
+              calories: mealMenu.calories, 
+              protein: mealMenu.protein,
+              carbs: Math.round(mealMenu.calories * 0.5),
+              fat: Math.round(mealMenu.calories * 0.3)
+            },
+            isPublished: true
+          }
+        });
+        createdMenus++;
+      } catch (err) {
+        // Menu already exists, skip
+      }
     }
-  }).catch(() => console.log("Today's menu already exists."));
+  }
+  console.log(`Created ${createdMenus} meal menus.`);
 
   // Events
   const adminUser = await prisma.user.findUnique({

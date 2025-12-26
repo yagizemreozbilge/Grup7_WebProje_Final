@@ -10,7 +10,7 @@ const mealsController = {
       const { date, cafeteria_id, meal_type } = req.query;
       
       const where = {
-        is_published: true
+        isPublished: true
       };
 
       if (date) {
@@ -18,11 +18,11 @@ const mealsController = {
       }
 
       if (cafeteria_id) {
-        where.cafeteria_id = cafeteria_id;
+        where.cafeteriaId = cafeteria_id;
       }
 
       if (meal_type) {
-        where.meal_type = meal_type;
+        where.mealType = meal_type;
       }
 
       const menus = await prisma.mealMenu.findMany({
@@ -38,7 +38,7 @@ const mealsController = {
         },
         orderBy: [
           { date: 'asc' },
-          { meal_type: 'asc' }
+          { mealType: 'asc' }
         ]
       });
 
@@ -77,12 +77,12 @@ const mealsController = {
 
       const menu = await prisma.mealMenu.create({
         data: {
-          cafeteria_id,
+          cafeteriaId: cafeteria_id,
           date: new Date(date),
-          meal_type,
-          items_json,
-          nutrition_json,
-          is_published: is_published || false
+          mealType: meal_type,
+          itemsJson: items_json,
+          nutritionJson: nutrition_json,
+          isPublished: is_published || false
         },
         include: {
           cafeteria: true
@@ -105,10 +105,10 @@ const mealsController = {
         where: { id },
         data: {
           ...(date && { date: new Date(date) }),
-          ...(meal_type && { meal_type }),
-          ...(items_json && { items_json }),
-          ...(nutrition_json && { nutrition_json }),
-          ...(is_published !== undefined && { is_published })
+          ...(meal_type && { mealType: meal_type }),
+          ...(items_json && { itemsJson: items_json }),
+          ...(nutrition_json && { nutritionJson: nutrition_json }),
+          ...(is_published !== undefined && { isPublished: is_published })
         },
         include: {
           cafeteria: true
@@ -175,7 +175,7 @@ const mealsController = {
 
         const todayReservations = await prisma.mealReservation.count({
           where: {
-            user_id: userId,
+            userId: userId,
             date: {
               gte: today,
               lt: tomorrow
@@ -195,7 +195,7 @@ const mealsController = {
       // If paid, check wallet balance
       if (!isScholarship && amount > 0) {
         const wallet = await prisma.wallet.findUnique({
-          where: { user_id: userId }
+          where: { userId: userId }
         });
 
         if (!wallet) {
@@ -216,13 +216,13 @@ const mealsController = {
       // Create reservation
       const reservation = await prisma.mealReservation.create({
         data: {
-          user_id: userId,
-          menu_id,
-          cafeteria_id,
-          meal_type,
+          userId: userId,
+          menuId: menu_id,
+          cafeteriaId: cafeteria_id,
+          mealType: meal_type,
           date: new Date(date),
           amount: isScholarship ? 0 : amount,
-          qr_code: qrCode,
+          qrCode: qrCode,
           status: 'reserved'
         },
         include: {
@@ -244,17 +244,17 @@ const mealsController = {
       // If paid, create pending transaction (will deduct on use)
       if (!isScholarship && amount > 0) {
         const wallet = await prisma.wallet.findUnique({
-          where: { user_id: userId }
+          where: { userId: userId }
         });
 
         await prisma.transaction.create({
           data: {
-            wallet_id: wallet.id,
+            walletId: wallet.id,
             type: 'debit',
             amount,
-            balance_after: wallet.balance, // Will update when used
-            reference_type: 'meal_reservation',
-            reference_id: reservation.id,
+            balanceAfter: wallet.balance, // Will update when used
+            referenceType: 'meal_reservation',
+            referenceId: reservation.id,
             description: `Meal reservation - ${meal_type}`
           }
         });
@@ -287,7 +287,7 @@ const mealsController = {
         return res.status(404).json({ success: false, error: 'Reservation not found' });
       }
 
-      if (reservation.user_id !== userId) {
+      if (reservation.userId !== userId) {
         return res.status(403).json({ success: false, error: 'Unauthorized' });
       }
 
@@ -300,7 +300,7 @@ const mealsController = {
 
       // Check if >= 2 hours before meal time
       const mealDate = new Date(reservation.date);
-      const mealTime = reservation.meal_type === 'lunch' ? 12 : reservation.meal_type === 'dinner' ? 18 : 8;
+      const mealTime = reservation.mealType === 'lunch' ? 12 : reservation.mealType === 'dinner' ? 18 : 8;
       mealDate.setHours(mealTime, 0, 0, 0);
 
       const now = new Date();
@@ -316,7 +316,7 @@ const mealsController = {
       // If paid, refund to wallet
       if (reservation.amount > 0) {
         const wallet = await prisma.wallet.findUnique({
-          where: { user_id: userId }
+          where: { userId: userId }
         });
 
         if (wallet) {
@@ -357,7 +357,7 @@ const mealsController = {
       const userId = req.user.id;
       const { status, date } = req.query;
 
-      const where = { user_id: userId };
+      const where = { userId: userId };
 
       if (status) {
         where.status = status;
@@ -378,7 +378,7 @@ const mealsController = {
         },
         orderBy: [
           { date: 'desc' },
-          { created_at: 'desc' }
+          { createdAt: 'desc' }
         ]
       });
 
@@ -411,7 +411,7 @@ const mealsController = {
       }
 
       // Validate QR code
-      if (reservation.qr_code !== qr_code) {
+      if (reservation.qrCode !== qr_code) {
         return res.status(400).json({ success: false, error: 'Invalid QR code' });
       }
 
@@ -441,7 +441,7 @@ const mealsController = {
         where: { id },
         data: {
           status: 'used',
-          used_at: new Date()
+          usedAt: new Date()
         },
         include: {
           user: {
@@ -466,7 +466,7 @@ const mealsController = {
           reservation.amount,
           'meal_reservation',
           reservation.id,
-          `Meal reservation - ${reservation.meal_type}`
+          `Meal reservation - ${reservation.mealType}`
         );
       }
 
@@ -482,6 +482,7 @@ const mealsController = {
 };
 
 module.exports = mealsController;
+
 
 
 
