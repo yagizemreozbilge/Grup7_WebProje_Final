@@ -34,6 +34,8 @@ model User {
   wallet                     Wallet?
   eventRegistrations         EventRegistration[]
   classroomReservations      ClassroomReservation[]
+  notifications              Notification[]
+  notificationPreference     NotificationPreference?
 
   @@map("users")
 }
@@ -535,4 +537,89 @@ model ClassroomReservation {
   @@index([user_id], map: "reservations_user_id")
   @@index([status], map: "reservations_status")
   @@map("reservations")
+}
+
+// ============================================
+// NOTIFICATION MODELS
+// ============================================
+
+enum NotificationCategory {
+  academic
+  attendance
+  meal
+  event
+  payment
+  system
+}
+
+enum NotificationChannel {
+  email
+  push
+  sms
+}
+
+model Notification {
+  id          String              @id @default(uuid()) @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  category    NotificationCategory
+  title       String              @db.VarChar(255)
+  message     String              @db.Text
+  data        Json?
+  isRead      Boolean             @default(false) @map("is_read")
+  readAt      DateTime?           @map("read_at") @db.Timestamptz(6)
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead], map: "notifications_user_read")
+  @@index([category], map: "notifications_category")
+  @@index([createdAt], map: "notifications_created_at")
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id          String              @id @default(uuid()) @db.Uuid
+  userId      String              @unique @map("user_id") @db.Uuid
+  preferences Json                @default("{}")
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
+// ============================================
+// IoT SENSOR MODELS (BONUS)
+// ============================================
+
+model Sensor {
+  id          String       @id @default(uuid()) @db.Uuid
+  sensorId    String       @unique @map("sensor_id") @db.VarChar(255)
+  name        String       @db.VarChar(255)
+  type        String       @db.VarChar(100)
+  location    String?      @db.VarChar(255)
+  unit        String       @db.VarChar(50)
+  isActive    Boolean      @default(true) @map("is_active")
+  metadata    Json?
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sensorData  SensorData[]
+
+  @@index([sensorId], map: "sensors_sensor_id")
+  @@index([type], map: "sensors_type")
+  @@map("sensors")
+}
+
+model SensorData {
+  id          String   @id @default(uuid()) @db.Uuid
+  sensorId    String   @map("sensor_id") @db.Uuid
+  value       Decimal  @db.Decimal(10, 4)
+  unit        String   @db.VarChar(50)
+  timestamp   DateTime @default(now()) @db.Timestamptz(6)
+  metadata    Json?
+  sensor      Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+
+  @@index([sensorId, timestamp], map: "sensor_data_sensor_timestamp")
+  @@index([timestamp], map: "sensor_data_timestamp")
+  @@map("sensor_data")
 }

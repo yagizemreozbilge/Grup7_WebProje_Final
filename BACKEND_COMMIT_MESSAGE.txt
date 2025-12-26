@@ -1,0 +1,64 @@
+feat: Part 4 - Analytics, Notifications, WebSocket, IoT, and Background Jobs
+
+Part 4 Final Implementation - Backend
+
+Analytics & Reporting:
+- Add GET /api/v1/analytics/dashboard endpoint for admin dashboard statistics
+- Add GET /api/v1/analytics/academic-performance endpoint with GPA analysis, grade distribution, top/at-risk students
+- Add GET /api/v1/analytics/attendance endpoint with course attendance rates, trends, critical absence tracking
+- Add GET /api/v1/analytics/meal-usage endpoint with daily counts, cafeteria utilization, peak hours, revenue
+- Add GET /api/v1/analytics/events endpoint with popular events, registration/check-in rates, category breakdown
+- Add GET /api/v1/analytics/export/:type endpoint for Excel/CSV report export
+
+Enhanced Notification System:
+- Add GET /api/v1/notifications endpoint with pagination, filtering, and sorting
+- Add PUT /api/v1/notifications/:id/read endpoint to mark notifications as read
+- Add PUT /api/v1/notifications/mark-all-read endpoint
+- Add DELETE /api/v1/notifications/:id endpoint
+- Add GET /api/v1/notifications/preferences endpoint
+- Add PUT /api/v1/notifications/preferences endpoint with email/push/SMS channel preferences
+- Implement createNotification helper method for system-wide notifications
+
+WebSocket Implementation:
+- Add Socket.io server setup with authentication middleware
+- Implement real-time notification broadcasting
+- Add real-time attendance updates for faculty dashboard
+- Add real-time sensor data streaming (bonus)
+- Support user-specific and role-based rooms
+
+IoT Sensor Integration (Bonus):
+- Add GET /api/v1/sensors endpoint to list all sensors
+- Add GET /api/v1/sensors/:id endpoint for sensor details
+- Add GET /api/v1/sensors/:id/data endpoint with time range filtering and aggregation (avg/min/max per hour/day)
+- Add POST /api/v1/sensors endpoint for sensor creation (admin only)
+- Add POST /api/v1/sensors/:id/data endpoint for adding sensor readings
+- Implement WebSocket streaming for real-time sensor data
+
+Background Jobs & Automation:
+- Add daily absence warnings cron job (runs at 9 AM)
+- Add event reminders cron job (1 day before and 1 hour before)
+- Add meal reservation reminders cron job (runs at 6 PM)
+- Add database backup cron job (runs daily at 2 AM)
+- Add log cleanup cron job (runs weekly on Sunday at 3 AM)
+- Add analytics data aggregation cron job (runs daily at 1 AM)
+
+Security & Optimization:
+- Enhance rate limiting with stricter limits for auth endpoints
+- Add Winston logger for application logging
+- Add Morgan middleware for HTTP request logging
+- Add input sanitization middleware to prevent XSS attacks
+- Improve error logging with detailed context
+- Add CORS hardening
+
+Database:
+- Add Notification model with category, read status, and user relations
+- Add NotificationPreference model for user notification settings
+- Add Sensor and SensorData models for IoT integration
+- Create migration for Part 4 features (preserves existing data)
+
+Dependencies:
+- Add socket.io for WebSocket support
+- Add node-cron for scheduled tasks
+- Add winston for logging
+- Add morgan for HTTP logging
+

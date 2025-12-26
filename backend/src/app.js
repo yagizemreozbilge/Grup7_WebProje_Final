@@ -5,7 +5,10 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
+const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
+const sanitizeInput = require('./middleware/inputSanitization');
 
 const indexRouter = require('./routes/index');
 const authRouter = require('./routes/auth');
@@ -21,8 +24,21 @@ const paymentRouter = require('./routes/payment');
 const eventsRouter = require('./routes/events');
 const schedulingRouter = require('./routes/scheduling');
 const reservationsRouter = require('./routes/reservations');
+const analyticsRouter = require('./routes/analytics');
+const notificationsRouter = require('./routes/notifications');
+const sensorsRouter = require('./routes/sensors');
 
 const app = express();
+
+// Request logging
+app.use(morgan('combined', {
+  stream: {
+    write: (message) => logger.info(message.trim())
+  }
+}));
+
+// Input sanitization (before body parsing)
+app.use(sanitizeInput);
 
 // JSON ve urlencoded body parser (en üstte)
 app.use(express.json());
@@ -64,11 +80,33 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiting (basic protection)
-app.use(rateLimit({
+// Rate limiting (enhanced protection)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      success: false,
+      error: 'Too many requests, please try again later.'
+    });
+  }
+});
+
+app.use('/api/v1/', limiter);
+
+// Stricter rate limiting for auth endpoints
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100
-}));
+  max: 5, // Limit to 5 requests per windowMs
+  message: 'Too many authentication attempts, please try again later.',
+  skipSuccessfulRequests: true
+});
+
+app.use('/api/v1/auth/', authLimiter);
 
 // Routes
 app.use('/api/v1', indexRouter);
@@ -85,8 +123,14 @@ app.use('/payment', paymentRouter);
 app.use('/api/v1/events', eventsRouter);
 app.use('/api/v1/scheduling', schedulingRouter);
 app.use('/api/v1/reservations', reservationsRouter);
+app.use('/api/v1/analytics', analyticsRouter);
+app.use('/api/v1/notifications', notificationsRouter);
+app.use('/api/v1/sensors', sensorsRouter);
 
 // Error handler (must be last)
 app.use(errorHandler);
+
+// Export socket service for use in other modules
+app.socketService = require('./services/socketService');
 
 module.exports = app;

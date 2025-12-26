@@ -1,6 +1,17 @@
+const logger = require('../utils/logger');
+
 const errorHandler = (err, req, res, next) => {
     const statusCode = err.statusCode || 500;
-    console.error('Error:', err);
+    
+    // Log error
+    logger.error('Error occurred', {
+        error: err.message,
+        stack: err.stack,
+        statusCode,
+        path: req.path,
+        method: req.method,
+        ip: req.ip
+    });
 
     // Prisma validation errors
     if (err.code === 'P2002') {

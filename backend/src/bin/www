@@ -14,6 +14,7 @@
 var app = require('../app.js');
 var debug = require('debug')('api:server');
 var http = require('http');
+const socketService = require('../services/socketService');
 
 /**
  * Get port from environment and store in Express.
@@ -27,6 +28,17 @@ app.set('port', port);
  */
 
 var server = http.createServer(app);
+
+/**
+ * Initialize WebSocket server
+ */
+socketService.initialize(server);
+
+/**
+ * Start cron jobs
+ */
+const cronJobs = require('../jobs/cronJobs');
+cronJobs.start();
 
 /**
  * Listen on provided port, on all network interfaces.
