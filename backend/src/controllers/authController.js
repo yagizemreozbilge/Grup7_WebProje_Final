@@ -12,10 +12,31 @@ const register = async (req, res, next) => {
     });
 
     const user = await authService.register(req.body);
+    
+    // In development, include verification token in response if email sending failed
+    let responseData = { userId: user.userId, email: user.email };
+    if (user.requiresVerification && process.env.NODE_ENV === 'development') {
+      // Get the verification token from database for development
+      const prisma = require('../prisma');
+      const emailToken = await prisma.emailVerificationToken.findFirst({
+        where: { userId: user.userId },
+        orderBy: { expiresAt: 'desc' }
+      });
+      if (emailToken) {
+        const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${emailToken.token}`;
+        responseData.verificationUrl = verificationUrl;
+        responseData.verificationToken = emailToken.token;
+        console.log('🔗 Development Verification URL:', verificationUrl);
+      }
+    }
+    
     res.status(201).json({
       success: true,
-      message: 'Registration successful. You can now log in.',
-      data: user
+      message: user.requiresVerification 
+        ? 'Registration successful. Please verify your email address.' 
+        : 'Registration successful. You can now log in.',
+      data: responseData,
+      requiresVerification: user.requiresVerification
     });
   } catch (error) {
     console.error('❌ Register error:', error.message);
@@ -49,8 +70,21 @@ const verifyEmail = async (req, res, next) => {
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    const result = await authService.login(email, password);
+    const { email, password, twoFactorToken } = req.body;
+    const result = await authService.login(email, password, twoFactorToken);
+    
+    // If 2FA is required, return partial response
+    if (result.requires2FA) {
+      return res.status(200).json({
+        success: true,
+        requires2FA: true,
+        message: '2FA token required',
+        data: {
+          userId: result.userId,
+          tempToken: result.tempToken
+        }
+      });
+    }
     
     // Set refresh token as httpOnly cookie
     res.cookie('refreshToken', result.refreshToken, {

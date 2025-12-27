@@ -183,9 +183,67 @@ const eventsController = {
         return res.status(400).json({ success: false, error: 'Event is not published' });
       }
 
-      // Check capacity
+      // Check capacity - if full, add to waitlist
       if (event.registeredCount >= event.capacity) {
-        return res.status(400).json({ success: false, error: 'Event is full' });
+        // Check if already on waitlist
+        const existingWaitlist = await prisma.eventWaitlist.findUnique({
+          where: {
+            eventId_userId: {
+              eventId: id,
+              userId: userId
+            }
+          }
+        });
+
+        if (existingWaitlist) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'You are already on the waitlist',
+            waitlistPosition: existingWaitlist.position
+          });
+        }
+
+        // Get current waitlist count for position
+        const waitlistCount = await prisma.eventWaitlist.count({
+          where: { eventId: id }
+        });
+
+        // Add to waitlist
+        const waitlistEntry = await prisma.eventWaitlist.create({
+          data: {
+            eventId: id,
+            userId: userId,
+            position: waitlistCount + 1
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                fullName: true
+              }
+            }
+          }
+        });
+
+        // Send waitlist confirmation
+        await NotificationService.sendEmail(
+          waitlistEntry.user.email,
+          'Etkinlik Bekleme Listesine Eklendiniz',
+          `<h2>Bekleme Listesine Eklendiniz</h2>
+           <p>${event.title} etkinliği için bekleme listesine eklendiniz.</p>
+           <p><strong>Bekleme Listesi Pozisyonunuz:</strong> ${waitlistEntry.position}</p>
+           <p>Etkinlikte yer açıldığında size bildirim gönderilecektir.</p>`
+        );
+
+        return res.status(200).json({ 
+          success: true, 
+          data: {
+            waitlist: true,
+            position: waitlistEntry.position,
+            message: 'Event is full. You have been added to the waitlist.'
+          }
+        });
       }
 
       // Check registration deadline
@@ -252,6 +310,35 @@ const eventsController = {
             }
           }
         });
+
+        // If there was a waitlist, notify next person (if any)
+        const nextWaitlistEntry = await tx.eventWaitlist.findFirst({
+          where: { eventId: id },
+          orderBy: { position: 'asc' }
+        });
+
+        if (nextWaitlistEntry) {
+          // Notify next person in waitlist
+          const nextUser = await tx.user.findUnique({
+            where: { id: nextWaitlistEntry.userId }
+          });
+
+          if (nextUser) {
+            await NotificationService.sendEmail(
+              nextUser.email,
+              'Etkinlikte Yer Açıldı',
+              `<h2>Etkinlikte Yer Açıldı</h2>
+               <p>${event.title} etkinliğinde yer açıldı. Hemen kayıt olabilirsiniz!</p>
+               <p>Kayıt olmak için etkinlik sayfasını ziyaret edin.</p>`
+            );
+
+            // Update notifiedAt
+            await tx.eventWaitlist.update({
+              where: { id: nextWaitlistEntry.id },
+              data: { notifiedAt: new Date() }
+            });
+          }
+        }
 
         // If paid, deduct from wallet
         if (event.isPaid && event.price > 0) {
@@ -321,15 +408,46 @@ const eventsController = {
           where: { id: regId }
         });
 
-        // Update registeredCount
-        await tx.event.update({
-          where: { id: eventId },
-          data: {
-            registeredCount: {
-              decrement: 1
-            }
+      // Update registeredCount
+      await tx.event.update({
+        where: { id: eventId },
+        data: {
+          registeredCount: {
+            decrement: 1
           }
+        }
+      });
+
+      // If event now has space, promote first person from waitlist
+      const event = await tx.event.findUnique({ where: { id: eventId } });
+      if (event && event.registeredCount < event.capacity) {
+        const firstWaitlist = await tx.eventWaitlist.findFirst({
+          where: { eventId: eventId },
+          orderBy: { position: 'asc' }
         });
+
+        if (firstWaitlist) {
+          // Notify first person in waitlist
+          const waitlistUser = await tx.user.findUnique({
+            where: { id: firstWaitlist.userId }
+          });
+
+          if (waitlistUser) {
+            await NotificationService.sendEmail(
+              waitlistUser.email,
+              'Etkinlikte Yer Açıldı',
+              `<h2>Etkinlikte Yer Açıldı</h2>
+               <p>${event.title} etkinliğinde yer açıldı. Hemen kayıt olabilirsiniz!</p>
+               <p>Kayıt olmak için etkinlik sayfasını ziyaret edin.</p>`
+            );
+
+            await tx.eventWaitlist.update({
+              where: { id: firstWaitlist.id },
+              data: { notifiedAt: new Date() }
+            });
+          }
+        }
+      }
 
         // If paid, refund
         if (registration.event.isPaid && registration.event.price > 0) {
@@ -363,6 +481,103 @@ const eventsController = {
       }
 
       res.status(200).json({ success: true, message: 'Registration cancelled successfully' });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Get waitlist for an event
+  async getWaitlist(req, res, next) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const event = await prisma.event.findUnique({
+        where: { id }
+      });
+
+      if (!event) {
+        return res.status(404).json({ success: false, error: 'Event not found' });
+      }
+
+      // Check if user is on waitlist
+      const userWaitlist = await prisma.eventWaitlist.findUnique({
+        where: {
+          eventId_userId: {
+            eventId: id,
+            userId: userId
+          }
+        }
+      });
+
+      // Get all waitlist entries
+      const waitlist = await prisma.eventWaitlist.findMany({
+        where: { eventId: id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true
+            }
+          }
+        },
+        orderBy: { position: 'asc' }
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          waitlist,
+          userPosition: userWaitlist ? userWaitlist.position : null,
+          totalOnWaitlist: waitlist.length
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  // Remove from waitlist
+  async removeFromWaitlist(req, res, next) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const waitlistEntry = await prisma.eventWaitlist.findUnique({
+        where: {
+          eventId_userId: {
+            eventId: id,
+            userId: userId
+          }
+        }
+      });
+
+      if (!waitlistEntry) {
+        return res.status(404).json({ success: false, error: 'Not on waitlist' });
+      }
+
+      const removedPosition = waitlistEntry.position;
+
+      // Remove from waitlist and update positions
+      await prisma.$transaction(async (tx) => {
+        await tx.eventWaitlist.delete({
+          where: { id: waitlistEntry.id }
+        });
+
+        // Update positions of remaining entries
+        await tx.eventWaitlist.updateMany({
+          where: {
+            eventId: id,
+            position: { gt: removedPosition }
+          },
+          data: {
+            position: { decrement: 1 }
+          }
+        });
+      });
+
+      res.status(200).json({ success: true, message: 'Removed from waitlist' });
     } catch (error) {
       next(error);
     }

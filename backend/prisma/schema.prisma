@@ -22,6 +22,8 @@ model User {
   reset_password_token       String?                 @db.VarChar(255)
   reset_password_expires     DateTime?               @db.Timestamptz(6)
   refresh_token              String?
+  twoFactorEnabled           Boolean                 @default(false) @map("two_factor_enabled")
+  twoFactorSecret            String?                 @map("two_factor_secret") @db.VarChar(255)
   createdAt                  DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                  DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
   admins                     admins?
@@ -33,6 +35,7 @@ model User {
   mealReservations           MealReservation[]
   wallet                     Wallet?
   eventRegistrations         EventRegistration[]
+  eventWaitlist              EventWaitlist[]
   classroomReservations      ClassroomReservation[]
   notifications              Notification[]
   notificationPreference     NotificationPreference?
@@ -373,12 +376,12 @@ model Cafeteria {
 
 model MealMenu {
   id            String            @id @default(uuid()) @db.Uuid
-  cafeteriaId  String            @map("cafeteria_id") @db.Uuid
+  cafeteriaId   String            @map("cafeteria_id") @db.Uuid
   date          DateTime          @db.Date
   mealType      MealType          @map("meal_type")
   itemsJson     Json              @map("items_json")
-  nutritionJson Json?            @map("nutrition_json")
-  isPublished   Boolean          @default(false) @map("is_published")
+  nutritionJson Json?             @map("nutrition_json")
+  isPublished   Boolean           @default(false) @map("is_published")
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   cafeteria     Cafeteria         @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
@@ -389,21 +392,21 @@ model MealMenu {
 }
 
 model MealReservation {
-  id           String                @id @default(uuid()) @db.Uuid
-  userId       String                @map("user_id") @db.Uuid
-  menuId       String                @map("menu_id") @db.Uuid
-  cafeteriaId  String                @map("cafeteria_id") @db.Uuid
-  mealType     MealType              @map("meal_type")
-  date         DateTime              @db.Date
-  amount       Decimal               @db.Decimal(10, 2)
-  qrCode       String                @unique @map("qr_code") @db.VarChar(255)
-  status       MealReservationStatus @default(reserved)
-  usedAt       DateTime?             @map("used_at") @db.Timestamptz(6)
-  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user         User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  menu         MealMenu              @relation(fields: [menuId], references: [id], onDelete: Cascade)
-  cafeteria    Cafeteria             @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
+  id          String                @id @default(uuid()) @db.Uuid
+  userId      String                @map("user_id") @db.Uuid
+  menuId      String                @map("menu_id") @db.Uuid
+  cafeteriaId String                @map("cafeteria_id") @db.Uuid
+  mealType    MealType              @map("meal_type")
+  date        DateTime              @db.Date
+  amount      Decimal               @db.Decimal(10, 2)
+  qrCode      String                @unique @map("qr_code") @db.VarChar(255)
+  status      MealReservationStatus @default(reserved)
+  usedAt      DateTime?             @map("used_at") @db.Timestamptz(6)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menu        MealMenu              @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  cafeteria   Cafeteria             @relation(fields: [cafeteriaId], references: [id], onDelete: Cascade)
 
   @@index([userId, date], map: "meal_reservations_user_date")
   @@index([qrCode], map: "meal_reservations_qr_code")
@@ -450,23 +453,24 @@ model Transaction {
 // ============================================
 
 model Event {
-  id                  String              @id @default(uuid()) @db.Uuid
-  title               String              @db.VarChar(255)
-  description         String?             @db.Text
-  category            EventCategory
-  date                DateTime            @db.Date
-  startTime           String              @map("start_time") @db.VarChar(10)
-  endTime             String              @map("end_time") @db.VarChar(10)
-  location            String              @db.VarChar(255)
-  capacity            Int
-  registeredCount     Int                 @default(0) @map("registered_count")
-  registrationDeadline DateTime           @map("registration_deadline") @db.Timestamptz(6)
-  isPaid              Boolean             @default(false) @map("is_paid")
-  price               Decimal?            @db.Decimal(10, 2)
-  status              EventStatus          @default(draft)
-  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-  registrations       EventRegistration[]
+  id                   String              @id @default(uuid()) @db.Uuid
+  title                String              @db.VarChar(255)
+  description          String?             @db.Text
+  category             EventCategory
+  date                 DateTime            @db.Date
+  startTime            String              @map("start_time") @db.VarChar(10)
+  endTime              String              @map("end_time") @db.VarChar(10)
+  location             String              @db.VarChar(255)
+  capacity             Int
+  registeredCount      Int                 @default(0) @map("registered_count")
+  registrationDeadline DateTime            @map("registration_deadline") @db.Timestamptz(6)
+  isPaid               Boolean             @default(false) @map("is_paid")
+  price                Decimal?            @db.Decimal(10, 2)
+  status               EventStatus         @default(draft)
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  registrations        EventRegistration[]
+  EventWaitlist        EventWaitlist[]
 
   @@index([category, date], map: "events_category_date")
   @@index([status], map: "events_status")
@@ -474,23 +478,40 @@ model Event {
 }
 
 model EventRegistration {
-  id              String    @id @default(uuid()) @db.Uuid
-  eventId         String    @map("event_id") @db.Uuid
-  userId          String    @map("user_id") @db.Uuid
+  id               String    @id @default(uuid()) @db.Uuid
+  eventId          String    @map("event_id") @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
   registrationDate DateTime  @default(now()) @map("registration_date") @db.Timestamptz(6)
-  qrCode          String    @unique @map("qr_code") @db.VarChar(255)
-  checkedIn       Boolean   @default(false) @map("checked_in")
-  checkedInAt     DateTime? @map("checked_in_at") @db.Timestamptz(6)
-  customFieldsJson Json?   @map("custom_fields_json")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qrCode           String    @unique @map("qr_code") @db.VarChar(255)
+  checkedIn        Boolean   @default(false) @map("checked_in")
+  checkedInAt      DateTime? @map("checked_in_at") @db.Timestamptz(6)
+  customFieldsJson Json?     @map("custom_fields_json")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  event            Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([eventId], map: "event_registrations_event_id")
   @@index([userId], map: "event_registrations_user_id")
   @@index([qrCode], map: "event_registrations_qr_code")
   @@map("event_registrations")
+}
+
+model EventWaitlist {
+  id         String    @id @default(uuid()) @db.Uuid
+  eventId    String    @map("event_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  position   Int       @default(0)
+  notifiedAt DateTime? @map("notified_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId, position], map: "event_waitlist_event_position")
+  @@index([userId], map: "event_waitlist_user_id")
+  @@map("event_waitlist")
 }
 
 // ============================================
@@ -559,17 +580,17 @@ enum NotificationChannel {
 }
 
 model Notification {
-  id          String              @id @default(uuid()) @db.Uuid
-  userId      String              @map("user_id") @db.Uuid
-  category    NotificationCategory
-  title       String              @db.VarChar(255)
-  message     String              @db.Text
-  data        Json?
-  isRead      Boolean             @default(false) @map("is_read")
-  readAt      DateTime?           @map("read_at") @db.Timestamptz(6)
-  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String               @id @default(uuid()) @db.Uuid
+  userId    String               @map("user_id") @db.Uuid
+  category  NotificationCategory
+  title     String               @db.VarChar(255)
+  message   String               @db.Text
+  data      Json?
+  isRead    Boolean              @default(false) @map("is_read")
+  readAt    DateTime?            @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead], map: "notifications_user_read")
   @@index([category], map: "notifications_category")
@@ -578,12 +599,12 @@ model Notification {
 }
 
 model NotificationPreference {
-  id          String              @id @default(uuid()) @db.Uuid
-  userId      String              @unique @map("user_id") @db.Uuid
-  preferences Json                @default("{}")
-  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  preferences Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
 }
@@ -593,17 +614,17 @@ model NotificationPreference {
 // ============================================
 
 model Sensor {
-  id          String       @id @default(uuid()) @db.Uuid
-  sensorId    String       @unique @map("sensor_id") @db.VarChar(255)
-  name        String       @db.VarChar(255)
-  type        String       @db.VarChar(100)
-  location    String?      @db.VarChar(255)
-  unit        String       @db.VarChar(50)
-  isActive    Boolean      @default(true) @map("is_active")
-  metadata    Json?
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  sensorData  SensorData[]
+  id         String       @id @default(uuid()) @db.Uuid
+  sensorId   String       @unique @map("sensor_id") @db.VarChar(255)
+  name       String       @db.VarChar(255)
+  type       String       @db.VarChar(100)
+  location   String?      @db.VarChar(255)
+  unit       String       @db.VarChar(50)
+  isActive   Boolean      @default(true) @map("is_active")
+  metadata   Json?
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sensorData SensorData[]
 
   @@index([sensorId], map: "sensors_sensor_id")
   @@index([type], map: "sensors_type")
@@ -611,13 +632,13 @@ model Sensor {
 }
 
 model SensorData {
-  id          String   @id @default(uuid()) @db.Uuid
-  sensorId    String   @map("sensor_id") @db.Uuid
-  value       Decimal  @db.Decimal(10, 4)
-  unit        String   @db.VarChar(50)
-  timestamp   DateTime @default(now()) @db.Timestamptz(6)
-  metadata    Json?
-  sensor      Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+  id        String   @id @default(uuid()) @db.Uuid
+  sensorId  String   @map("sensor_id") @db.Uuid
+  value     Decimal  @db.Decimal(10, 4)
+  unit      String   @db.VarChar(50)
+  timestamp DateTime @default(now()) @db.Timestamptz(6)
+  metadata  Json?
+  sensor    Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
 
   @@index([sensorId, timestamp], map: "sensor_data_sensor_timestamp")
   @@index([timestamp], map: "sensor_data_timestamp")

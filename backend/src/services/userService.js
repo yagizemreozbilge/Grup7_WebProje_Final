@@ -94,7 +94,7 @@ const getAllUsers = async (options = {}) => {
   const skip = (parseInt(page) - 1) * take;
 
   const where = {};
-  if (role) where.role = role.toUpperCase();
+  if (role) where.role = role.toLowerCase();
   if (search) {
     where.OR = [
       { email: { contains: search, mode: 'insensitive' } },

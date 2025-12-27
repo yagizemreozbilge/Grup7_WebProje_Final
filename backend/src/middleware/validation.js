@@ -40,7 +40,9 @@ const loginSchema = Joi.object({
   email: Joi.string().email().pattern(/\.edu/i).required()
     .messages({ 'string.pattern.base': 'E-posta adresi .edu uzantılı olmalıdır' }),
   password: Joi.string().required()
-    .messages({ 'string.empty': 'Şifre gereklidir' })
+    .messages({ 'string.empty': 'Şifre gereklidir' }),
+  twoFactorToken: Joi.string().length(6).optional().allow(null, '')
+    .messages({ 'string.length': '2FA kodu 6 haneli olmalıdır' })
 });
 
 const resetSchema = Joi.object({

@@ -25,8 +25,10 @@ const eventsRouter = require('./routes/events');
 const schedulingRouter = require('./routes/scheduling');
 const reservationsRouter = require('./routes/reservations');
 const analyticsRouter = require('./routes/analytics');
+const twoFactorRouter = require('./routes/twoFactor');
 const notificationsRouter = require('./routes/notifications');
 const sensorsRouter = require('./routes/sensors');
+const adminRouter = require('./routes/admin');
 
 const app = express();
 
@@ -126,6 +128,7 @@ app.use('/api/v1/reservations', reservationsRouter);
 app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/notifications', notificationsRouter);
 app.use('/api/v1/sensors', sensorsRouter);
+app.use('/api/v1/admin', adminRouter);
 
 // Error handler (must be last)
 app.use(errorHandler);

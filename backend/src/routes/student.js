@@ -14,6 +14,10 @@ router.get('/available-courses', authenticate, studentController.getAvailableCou
 router.get('/attendance', authenticate, studentController.getMyAttendance);
 router.get('/attendance-summary', authenticate, studentController.getAttendanceSummary); // Added attendance summary route
 
+// Yoklama verme (QR kod ile)
+const attendanceController = require('../controllers/attendanceController');
+router.post('/attendance/give/:sessionId', authenticate, attendanceController.giveAttendance);
+
 // Part 2: Enroll and Drop
 router.post('/enroll', authenticate, studentController.enrollCourse);
 router.post('/drop', authenticate, studentController.dropCourse);

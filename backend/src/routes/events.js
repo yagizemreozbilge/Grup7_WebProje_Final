@@ -14,6 +14,8 @@ router.post('/:id/register', authenticate, eventsController.registerForEvent);
 router.delete('/:eventId/registrations/:regId', authenticate, eventsController.cancelRegistration);
 router.get('/:id/registrations', authenticate, authorize(['admin']), eventsController.getEventRegistrations);
 router.post('/:eventId/registrations/:regId/checkin', authenticate, authorize(['admin']), eventsController.checkIn);
+router.get('/:id/waitlist', authenticate, eventsController.getWaitlist);
+router.delete('/:id/waitlist', authenticate, eventsController.removeFromWaitlist);
 
 // Event detail routes (must be after specific routes)
 router.get('/:id', eventsController.getEventById);

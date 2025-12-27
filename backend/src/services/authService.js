@@ -140,7 +140,7 @@ const register = async (userData) => {
 
   // Email verification setting (can be disabled via env variable for development)
   const requireEmailVerification = process.env.REQUIRE_EMAIL_VERIFICATION !== 'false';
-  const isVerified = !requireEmailVerification; // If verification disabled, mark as verified immediately
+  const isVerified = requireEmailVerification ? false : true; // If verification required, mark as unverified; otherwise verified
 
   console.log('💾 Creating user in database...');
   console.log('📧 Email verification required:', requireEmailVerification);
@@ -206,6 +206,12 @@ const register = async (userData) => {
         console.log('📧 Verification email sent to:', normalizedEmail);
       } catch (emailError) {
         console.error('⚠️ Failed to send verification email:', emailError.message);
+        // In development, log the verification token if email sending fails
+        if (process.env.NODE_ENV === 'development') {
+          const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
+          console.log('🔗 Verification URL (for development):', verificationUrl);
+          console.log('🔑 Verification Token:', verificationToken);
+        }
         // Don't fail registration if email sending fails
       }
     }
@@ -264,7 +270,9 @@ const verifyEmail = async (token) => {
   console.log('✅ Email verified successfully for user:', record.user.email);
 };
 
-const login = async (email, password) => {
+const login = async (email, password, twoFactorToken = null) => {
+  const TwoFactorService = require('./twoFactorService');
+  
   // Normalize email to lowercase for case-insensitive lookup
   const normalizedEmail = email.toLowerCase().trim();
   
@@ -306,6 +314,36 @@ const login = async (email, password) => {
     err.code = 'UNAUTHORIZED';
     err.statusCode = 401;
     throw err;
+  }
+  
+  // Check if 2FA is enabled
+  if (user.twoFactorEnabled) {
+    if (!twoFactorToken) {
+      // Generate temporary token for 2FA verification
+      const tempToken = generateAccessToken({ id: user.id, email: user.email, role: user.role }, '5m');
+      return {
+        requires2FA: true,
+        userId: user.id,
+        tempToken
+      };
+    }
+    
+    // Verify 2FA token
+    const secret = await TwoFactorService.getUserSecret(user.id);
+    if (!secret) {
+      const err = new Error('2FA secret not found');
+      err.code = 'UNAUTHORIZED';
+      err.statusCode = 401;
+      throw err;
+    }
+    
+    const isValid2FA = TwoFactorService.verifyToken({ base32: secret }, twoFactorToken);
+    if (!isValid2FA) {
+      const err = new Error('Invalid 2FA token');
+      err.code = 'UNAUTHORIZED';
+      err.statusCode = 401;
+      throw err;
+    }
   }
   
   const payload = { id: user.id, email: user.email, role: user.role };

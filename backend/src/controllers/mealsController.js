@@ -14,7 +14,17 @@ const mealsController = {
       };
 
       if (date) {
-        where.date = new Date(date);
+        // Parse date and create range for the entire day
+        const dateObj = new Date(date);
+        const startOfDay = new Date(dateObj);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(dateObj);
+        endOfDay.setHours(23, 59, 59, 999);
+        
+        where.date = {
+          gte: startOfDay,
+          lte: endOfDay
+        };
       }
 
       if (cafeteria_id) {
@@ -44,6 +54,7 @@ const mealsController = {
 
       res.status(200).json({ success: true, data: menus });
     } catch (error) {
+      console.error('Error fetching menus:', error);
       next(error);
     }
   },

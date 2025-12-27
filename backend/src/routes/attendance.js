@@ -6,6 +6,8 @@ const attendanceController = require('../controllers/attendanceController');
 
 // Yoklama oturumu açma (assignment'a uygun)
 router.post('/sessions', authenticate, attendanceController.createSession);
+// Yoklama oturumu kayıtlarını görüntüleme
+router.get('/sessions/:sessionId/attendance', authenticate, attendanceController.getSessionAttendance);
 // Yoklama verme
 router.post('/mark', attendanceController.markAttendance);
 // Yoklama durumu
