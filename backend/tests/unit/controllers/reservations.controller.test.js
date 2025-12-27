@@ -6,6 +6,9 @@ jest.mock('../../../src/prisma', () => ({
         create: jest.fn(),
         update: jest.fn()
     },
+    classrooms: {
+        findMany: jest.fn()
+    },
     user: {
         findMany: jest.fn(),
         findUnique: jest.fn()
@@ -338,6 +341,33 @@ describe('Reservations Controller Unit Tests', () => {
         it('should not detect overlap for separate times', () => {
             const overlaps = reservationsController.timeOverlaps('10:00', '12:00', '14:00', '16:00');
             expect(overlaps).toBe(false);
+        });
+    });
+
+    describe('getClassrooms', () => {
+        it('should get classrooms successfully (200)', async () => {
+            const mockClassrooms = [
+                { id: 'cr1', building: 'A', room_number: '101', capacity: 50 },
+                { id: 'cr2', building: 'A', room_number: '102', capacity: 30 }
+            ];
+            prisma.classrooms.findMany.mockResolvedValue(mockClassrooms);
+
+            await reservationsController.getClassrooms(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith({
+                success: true,
+                data: mockClassrooms
+            });
+        });
+
+        it('should call next with error on failure', async () => {
+            const error = new Error('DB Error');
+            prisma.classrooms.findMany.mockRejectedValue(error);
+
+            await reservationsController.getClassrooms(req, res, next);
+
+            expect(next).toHaveBeenCalledWith(error);
         });
     });
 });

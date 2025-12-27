@@ -17,6 +17,16 @@ jest.mock('../../../src/prisma', () => ({
         delete: jest.fn(),
         update: jest.fn()
     },
+    eventWaitlist: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
+        create: jest.fn(),
+        delete: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
+        count: jest.fn()
+    },
     wallet: {
         findUnique: jest.fn()
     },
@@ -654,6 +664,325 @@ describe('Events Controller Unit Tests', () => {
             await eventsController.checkIn(req, res, next);
 
             expect(next).toHaveBeenCalledWith(error);
+        });
+    });
+
+    describe('getWaitlist', () => {
+        it('should get waitlist successfully (200)', async () => {
+            req.params = { id: 'e1' };
+            const mockEvent = { id: 'e1', title: 'Test Event' };
+            const mockWaitlist = [
+                { id: 'w1', position: 1, user: { id: 'u1', fullName: 'User 1', email: 'u1@test.com' } }
+            ];
+
+            prisma.event.findUnique.mockResolvedValue(mockEvent);
+            prisma.eventWaitlist.findUnique.mockResolvedValue({ id: 'w1', position: 1 });
+            prisma.eventWaitlist.findMany.mockResolvedValue(mockWaitlist);
+
+            await eventsController.getWaitlist(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith({
+                success: true,
+                data: expect.objectContaining({
+                    waitlist: mockWaitlist,
+                    userPosition: 1,
+                    totalOnWaitlist: 1
+                })
+            });
+        });
+
+        it('should return 404 if event not found', async () => {
+            req.params = { id: 'e1' };
+            prisma.event.findUnique.mockResolvedValue(null);
+
+            await eventsController.getWaitlist(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(404);
+        });
+
+        it('should handle user not on waitlist', async () => {
+            req.params = { id: 'e1' };
+            const mockEvent = { id: 'e1' };
+            prisma.event.findUnique.mockResolvedValue(mockEvent);
+            prisma.eventWaitlist.findUnique.mockResolvedValue(null);
+            prisma.eventWaitlist.findMany.mockResolvedValue([]);
+
+            await eventsController.getWaitlist(req, res, next);
+
+            expect(res.json).toHaveBeenCalledWith({
+                success: true,
+                data: expect.objectContaining({
+                    userPosition: null
+                })
+            });
+        });
+
+        it('should call next with error on failure', async () => {
+            req.params = { id: 'e1' };
+            const error = new Error('DB Error');
+            prisma.event.findUnique.mockRejectedValue(error);
+
+            await eventsController.getWaitlist(req, res, next);
+
+            expect(next).toHaveBeenCalledWith(error);
+        });
+    });
+
+    describe('removeFromWaitlist', () => {
+        it('should remove from waitlist successfully (200)', async () => {
+            req.params = { id: 'e1' };
+            const mockWaitlistEntry = { id: 'w1', position: 1 };
+
+            prisma.eventWaitlist.findUnique.mockResolvedValue(mockWaitlistEntry);
+            prisma.$transaction.mockImplementation(async (callback) => {
+                return callback({
+                    eventWaitlist: {
+                        delete: jest.fn().mockResolvedValue({}),
+                        updateMany: jest.fn().mockResolvedValue({ count: 0 })
+                    }
+                });
+            });
+
+            await eventsController.removeFromWaitlist(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith({
+                success: true,
+                message: 'Removed from waitlist'
+            });
+        });
+
+        it('should return 404 if not on waitlist', async () => {
+            req.params = { id: 'e1' };
+            prisma.eventWaitlist.findUnique.mockResolvedValue(null);
+
+            await eventsController.removeFromWaitlist(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(404);
+        });
+
+        it('should call next with error on failure', async () => {
+            req.params = { id: 'e1' };
+            const error = new Error('DB Error');
+            prisma.eventWaitlist.findUnique.mockRejectedValue(error);
+
+            await eventsController.removeFromWaitlist(req, res, next);
+
+            expect(next).toHaveBeenCalledWith(error);
+        });
+    });
+
+    describe('getMyRegistrations', () => {
+        it('should get my registrations successfully (200)', async () => {
+            const mockRegistrations = [
+                { id: 'reg1', eventId: 'e1', event: { title: 'Event 1' } }
+            ];
+
+            prisma.eventRegistration.findMany.mockResolvedValue(mockRegistrations);
+
+            await eventsController.getMyRegistrations(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith({
+                success: true,
+                data: mockRegistrations
+            });
+        });
+
+        it('should call next with error on failure', async () => {
+            const error = new Error('DB Error');
+            prisma.eventRegistration.findMany.mockRejectedValue(error);
+
+            await eventsController.getMyRegistrations(req, res, next);
+
+            expect(next).toHaveBeenCalledWith(error);
+        });
+    });
+
+    describe('registerForEvent - waitlist scenarios', () => {
+        it('should add to waitlist if event is full', async () => {
+            req.params.id = 'e1';
+            const fullEvent = {
+                ...mockEvent,
+                registered_count: 100,
+                capacity: 100
+            };
+            prisma.event.findUnique.mockResolvedValue(fullEvent);
+            prisma.eventWaitlist.findUnique.mockResolvedValue(null);
+            prisma.eventWaitlist.count.mockResolvedValue(5);
+            prisma.eventWaitlist.create.mockResolvedValue({
+                id: 'w1',
+                position: 6,
+                user: { id: 'user123', email: 'test@example.com', fullName: 'Test User' }
+            });
+            NotificationService.sendEmail.mockResolvedValue();
+
+            await eventsController.registerForEvent(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.json).toHaveBeenCalledWith({
+                success: true,
+                data: expect.objectContaining({
+                    waitlist: true,
+                    position: 6
+                })
+            });
+        });
+
+        it('should return 400 if already on waitlist', async () => {
+            req.params.id = 'e1';
+            const fullEvent = {
+                ...mockEvent,
+                registered_count: 100,
+                capacity: 100
+            };
+            prisma.event.findUnique.mockResolvedValue(fullEvent);
+            prisma.eventWaitlist.findUnique.mockResolvedValue({
+                id: 'w1',
+                position: 3
+            });
+
+            await eventsController.registerForEvent(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({
+                success: false,
+                error: 'You are already on the waitlist',
+                waitlistPosition: 3
+            });
+        });
+
+        it('should handle paid event with sufficient balance', async () => {
+            req.params.id = 'e1';
+            const paidEvent = {
+                ...mockEvent,
+                is_paid: true,
+                price: 50
+            };
+            prisma.event.findUnique.mockResolvedValue(paidEvent);
+            prisma.eventRegistration.findFirst.mockResolvedValue(null);
+            prisma.wallet.findUnique.mockResolvedValue({
+                id: 'wallet1',
+                balance: 100
+            });
+            QRCodeService.generateEventQRCode.mockReturnValue('QR123');
+            
+            const mockRegistration = {
+                id: 'reg1',
+                user: { id: 'user123', email: 'test@example.com', fullName: 'Test User' }
+            };
+            
+            prisma.$transaction.mockImplementation(async (callback) => {
+                return callback({
+                    eventRegistration: {
+                        create: jest.fn().mockResolvedValue(mockRegistration)
+                    },
+                    event: {
+                        update: jest.fn().mockResolvedValue({})
+                    },
+                    eventWaitlist: {
+                        findFirst: jest.fn().mockResolvedValue(null)
+                    },
+                    user: {
+                        findUnique: jest.fn().mockResolvedValue(null)
+                    }
+                });
+            });
+
+            PaymentService.deductFromWallet.mockResolvedValue();
+            NotificationService.sendEventRegistrationConfirmation.mockResolvedValue();
+
+            await eventsController.registerForEvent(req, res, next);
+
+            expect(res.status).toHaveBeenCalledWith(201);
+        });
+    });
+
+    describe('cancelRegistration - refund scenarios', () => {
+        it('should refund for paid event', async () => {
+            req.params = { eventId: 'e1', regId: 'reg1' };
+            const paidRegistration = {
+                ...mockRegistration,
+                event: {
+                    id: 'e1',
+                    title: 'Paid Event',
+                    is_paid: true,
+                    price: 50
+                }
+            };
+            prisma.eventRegistration.findUnique.mockResolvedValue(paidRegistration);
+            prisma.user.findUnique.mockResolvedValue({
+                id: 'user123',
+                email: 'test@example.com'
+            });
+            
+            prisma.$transaction.mockImplementation(async (callback) => {
+                return callback({
+                    eventRegistration: {
+                        delete: jest.fn().mockResolvedValue({})
+                    },
+                    event: {
+                        update: jest.fn().mockResolvedValue({}),
+                        findUnique: jest.fn().mockResolvedValue({ id: 'e1', capacity: 100, registered_count: 50 })
+                    },
+                    eventWaitlist: {
+                        findFirst: jest.fn().mockResolvedValue(null)
+                    },
+                    user: {
+                        findUnique: jest.fn().mockResolvedValue(null)
+                    }
+                });
+            });
+
+            prisma.wallet.findUnique.mockResolvedValue({ id: 'wallet1' });
+            PaymentService.refundToWallet.mockResolvedValue();
+            NotificationService.sendEmail.mockResolvedValue();
+
+            await eventsController.cancelRegistration(req, res, next);
+
+            expect(PaymentService.refundToWallet).toHaveBeenCalled();
+            expect(res.status).toHaveBeenCalledWith(200);
+        });
+
+        it('should notify waitlist when space opens', async () => {
+            req.params = { eventId: 'e1', regId: 'reg1' };
+            prisma.eventRegistration.findUnique.mockResolvedValue(mockRegistration);
+            prisma.user.findUnique.mockResolvedValue({
+                id: 'user123',
+                email: 'test@example.com'
+            });
+            
+            prisma.$transaction.mockImplementation(async (callback) => {
+                return callback({
+                    eventRegistration: {
+                        delete: jest.fn().mockResolvedValue({})
+                    },
+                    event: {
+                        update: jest.fn().mockResolvedValue({}),
+                        findUnique: jest.fn().mockResolvedValue({ id: 'e1', capacity: 100, registered_count: 99 })
+                    },
+                    eventWaitlist: {
+                        findFirst: jest.fn().mockResolvedValue({
+                            id: 'w1',
+                            userId: 'waitlistUser',
+                            position: 1
+                        })
+                    },
+                    user: {
+                        findUnique: jest.fn().mockResolvedValue({
+                            id: 'waitlistUser',
+                            email: 'waitlist@test.com'
+                        })
+                    }
+                });
+            });
+
+            NotificationService.sendEmail.mockResolvedValue();
+
+            await eventsController.cancelRegistration(req, res, next);
+
+            expect(NotificationService.sendEmail).toHaveBeenCalled();
         });
     });
 }); 
