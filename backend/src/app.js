@@ -126,6 +126,7 @@ app.use('/api/v1/events', eventsRouter);
 app.use('/api/v1/scheduling', schedulingRouter);
 app.use('/api/v1/reservations', reservationsRouter);
 app.use('/api/v1/analytics', analyticsRouter);
+app.use('/api/v1/2fa', twoFactorRouter);
 app.use('/api/v1/notifications', notificationsRouter);
 app.use('/api/v1/sensors', sensorsRouter);
 app.use('/api/v1/admin', adminRouter);

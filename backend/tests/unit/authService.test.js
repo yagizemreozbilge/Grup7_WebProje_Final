@@ -44,8 +44,14 @@ jest.mock('../../src/services/emailService', () => ({
   sendPasswordResetEmail: jest.fn().mockResolvedValue(true),
 }));
 
+jest.mock('../../src/services/twoFactorService', () => ({
+  getUserSecret: jest.fn(),
+  verifyToken: jest.fn(),
+}));
+
 const authService = require('../../src/services/authService');
 const jwtUtils = require('../../src/utils/jwt');
+const TwoFactorService = require('../../src/services/twoFactorService');
 
 describe('authService Unit Tests', () => {
   beforeEach(() => {
@@ -308,6 +314,78 @@ describe('authService Unit Tests', () => {
       ).rejects.toThrow('E-posta adresinizi doğrulamanız gerekiyor');
     });
 
+    it('should require 2FA when enabled and no token provided', async () => {
+      const hashedPassword = await bcrypt.hash('Password123', 10);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@test.edu',
+        passwordHash: hashedPassword,
+        role: 'student',
+        isVerified: true,
+        twoFactorEnabled: true
+      });
+
+      const result = await authService.login('test@test.edu', 'Password123');
+
+      expect(result.requires2FA).toBe(true);
+      expect(result.tempToken).toBeDefined();
+    });
+
+    it('should login with valid 2FA token', async () => {
+      const hashedPassword = await bcrypt.hash('Password123', 10);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@test.edu',
+        passwordHash: hashedPassword,
+        role: 'student',
+        isVerified: true,
+        twoFactorEnabled: true
+      });
+      TwoFactorService.getUserSecret.mockResolvedValue('secret123');
+      TwoFactorService.verifyToken.mockReturnValue(true);
+      mockPrisma.refreshToken.create.mockResolvedValue({});
+
+      const result = await authService.login('test@test.edu', 'Password123', '123456');
+
+      expect(result.accessToken).toBeDefined();
+      expect(result.refreshToken).toBeDefined();
+    });
+
+    it('should throw error for invalid 2FA token', async () => {
+      const hashedPassword = await bcrypt.hash('Password123', 10);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@test.edu',
+        passwordHash: hashedPassword,
+        role: 'student',
+        isVerified: true,
+        twoFactorEnabled: true
+      });
+      TwoFactorService.getUserSecret.mockResolvedValue('secret123');
+      TwoFactorService.verifyToken.mockReturnValue(false);
+
+      await expect(
+        authService.login('test@test.edu', 'Password123', 'invalid')
+      ).rejects.toThrow('Invalid 2FA token');
+    });
+
+    it('should throw error if 2FA secret not found', async () => {
+      const hashedPassword = await bcrypt.hash('Password123', 10);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        email: 'test@test.edu',
+        passwordHash: hashedPassword,
+        role: 'student',
+        isVerified: true,
+        twoFactorEnabled: true
+      });
+      TwoFactorService.getUserSecret.mockResolvedValue(null);
+
+      await expect(
+        authService.login('test@test.edu', 'Password123', '123456')
+      ).rejects.toThrow('2FA secret not found');
+    });
+
     it('should normalize email to lowercase on login', async () => {
       const hashedPassword = await bcrypt.hash('Password123', 10);
       mockPrisma.user.findUnique.mockResolvedValue({
@@ -471,6 +549,12 @@ describe('authService Unit Tests', () => {
       await expect(
         authService.resetPassword('token', 'Password1', 'Password2')
       ).rejects.toThrow('Şifreler eşleşmiyor');
+    });
+
+    it('should throw error for invalid password format', async () => {
+      await expect(
+        authService.resetPassword('token', 'weak', 'weak')
+      ).rejects.toThrow('Şifre kriterlerini sağlamıyor');
     });
 
     it('should throw error for invalid token', async () => {

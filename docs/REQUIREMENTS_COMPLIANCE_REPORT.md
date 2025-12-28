@@ -434,3 +434,4 @@ Testler hariç tüm zorunlu özellikler implement edilmiştir. Placeholder imple
 
 
 
+

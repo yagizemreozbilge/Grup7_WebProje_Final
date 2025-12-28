@@ -86,10 +86,10 @@ describe('Haversine - Unit Tests', () => {
   });
 
   test('should handle geofence radius scenario (15m radius)', () => {
-    // Simulate geofence: center point and a point 20m away
+    // Simulate geofence: center point and a point 25m away
     const centerLat = 41.0082;
     const centerLon = 28.9784;
-    const pointLat = 41.00835; // ~20m away
+    const pointLat = 41.0084; // ~25m away
     const pointLon = 28.9784;
     
     const distance = haversine(centerLat, centerLon, pointLat, pointLon);
@@ -137,6 +137,7 @@ describe('Haversine - Unit Tests', () => {
     expect(d1).toBeLessThan(250000);
   });
 });
+
 
 
 

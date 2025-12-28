@@ -61,12 +61,13 @@ class SchedulingService {
         // Try each classroom
         for (const classroom of classrooms) {
           // Check hard constraints
-          if (!this.checkHardConstraints(
+          if (!SchedulingService.checkHardConstraints(
             section,
             classroom,
             timeSlot,
             assignments,
             studentSections,
+            sections,
             hardConstraints
           )) {
             continue;
@@ -110,7 +111,7 @@ class SchedulingService {
     });
 
     // Optimize with soft constraints
-    const optimizedSchedule = this.optimizeSchedule(
+    const optimizedSchedule = SchedulingService.optimizeSchedule(
       schedule,
       sections,
       classrooms,
@@ -125,7 +126,7 @@ class SchedulingService {
   /**
    * Check hard constraints
    */
-  static checkHardConstraints(section, classroom, timeSlot, assignments, studentSections, constraints) {
+  static checkHardConstraints(section, classroom, timeSlot, assignments, studentSections, sections, constraints) {
     // 1. No instructor double-booking
     if (constraints.noInstructorDoubleBooking) {
       for (const [existingSectionId, existingAssignment] of assignments) {
@@ -146,7 +147,7 @@ class SchedulingService {
       for (const [existingSectionId, existingAssignment] of assignments) {
         if (existingAssignment.classroom_id === classroom.id &&
             existingAssignment.day_of_week === timeSlot.day &&
-            this.timeOverlaps(
+            SchedulingService.timeOverlaps(
               existingAssignment.start_time,
               existingAssignment.end_time,
               timeSlot.start,
@@ -166,7 +167,7 @@ class SchedulingService {
             if (otherSectionId !== section.id && assignments.has(otherSectionId)) {
               const otherAssignment = assignments.get(otherSectionId);
               if (otherAssignment.day_of_week === timeSlot.day &&
-                  this.timeOverlaps(
+                  SchedulingService.timeOverlaps(
                     otherAssignment.start_time,
                     otherAssignment.end_time,
                     timeSlot.start,
@@ -416,6 +417,7 @@ class SchedulingService {
 }
 
 module.exports = SchedulingService;
+
 
 
 

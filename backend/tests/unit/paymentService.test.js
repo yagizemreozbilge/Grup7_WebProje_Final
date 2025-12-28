@@ -25,14 +25,14 @@ describe('PaymentService Unit Tests', () => {
     });
 
     describe('createPaymentSession', () => {
-        it('should return a valid session object with all parameters', async () => {
+        it('should return a valid session object with all parameters', async() => {
             const amount = 100;
             const currency = 'USD';
             const userId = 'user-123';
             const description = 'Test payment';
 
             const session = await PaymentService.createPaymentSession(amount, currency, userId, description);
-            
+
             expect(session).toHaveProperty('sessionId');
             expect(session.sessionId).toContain('payment_');
             expect(session.sessionId).toContain(userId);
@@ -41,44 +41,44 @@ describe('PaymentService Unit Tests', () => {
             expect(session.paymentUrl).toContain('payment_');
             expect(session).toHaveProperty('expiresAt');
             expect(session.expiresAt).toBeInstanceOf(Date);
-            
+
             const expectedExpiry = Date.now() + 15 * 60 * 1000;
             const timeDiff = Math.abs(session.expiresAt.getTime() - expectedExpiry);
             expect(timeDiff).toBeLessThan(1000);
         });
 
-        it('should use default currency TRY when not provided', async () => {
+        it('should use default currency TRY when not provided', async() => {
             const session = await PaymentService.createPaymentSession(50, undefined, 'user-1');
             expect(session.currency).toBe('TRY');
             expect(session.amount).toBe(50);
         });
 
-        it('should generate unique session IDs', async () => {
+        it('should generate unique session IDs', async() => {
             const session1 = await PaymentService.createPaymentSession(100, 'TRY', 'user-1');
             await new Promise(resolve => setTimeout(resolve, 10));
             const session2 = await PaymentService.createPaymentSession(100, 'TRY', 'user-1');
             expect(session1.sessionId).not.toBe(session2.sessionId);
         });
 
-        it('should use custom PAYMENT_GATEWAY_URL from environment', async () => {
-            const originalEnv = process.env.PAYMENT_GATEWAY_URL;
-            process.env.PAYMENT_GATEWAY_URL = 'https://custom-gateway.com';
+        it('should use custom FRONTEND_URL from environment', async() => {
+            const originalEnv = process.env.FRONTEND_URL;
+            process.env.FRONTEND_URL = 'https://custom-frontend.com';
             const session = await PaymentService.createPaymentSession(100, 'TRY', 'user-1');
-            expect(session.paymentUrl).toContain('https://custom-gateway.com');
+            expect(session.paymentUrl).toContain('https://custom-frontend.com');
             if (originalEnv) {
-                process.env.PAYMENT_GATEWAY_URL = originalEnv;
+                process.env.FRONTEND_URL = originalEnv;
             } else {
-                delete process.env.PAYMENT_GATEWAY_URL;
+                delete process.env.FRONTEND_URL;
             }
         });
 
-        it('should use default localhost URL when PAYMENT_GATEWAY_URL is not set', async () => {
-            const originalEnv = process.env.PAYMENT_GATEWAY_URL;
-            delete process.env.PAYMENT_GATEWAY_URL;
+        it('should use default localhost URL when FRONTEND_URL is not set', async() => {
+            const originalEnv = process.env.FRONTEND_URL;
+            delete process.env.FRONTEND_URL;
             const session = await PaymentService.createPaymentSession(100, 'TRY', 'user-1');
-            expect(session.paymentUrl).toContain('http://localhost:5000');
+            expect(session.paymentUrl).toContain('http://localhost:3000');
             if (originalEnv) {
-                process.env.PAYMENT_GATEWAY_URL = originalEnv;
+                process.env.FRONTEND_URL = originalEnv;
             }
         });
     });
@@ -103,7 +103,7 @@ describe('PaymentService Unit Tests', () => {
         const referenceId = 'ref-123';
         const description = 'Payment topup';
 
-        it('should throw error if wallet not found', async () => {
+        it('should throw error if wallet not found', async() => {
             prisma.wallet.findUnique.mockResolvedValue(null);
             await expect(
                 PaymentService.processPayment(walletId, amount, referenceType, referenceId, description)
@@ -113,7 +113,7 @@ describe('PaymentService Unit Tests', () => {
             });
         });
 
-        it('should successfully process payment and update wallet balance', async () => {
+        it('should successfully process payment and update wallet balance', async() => {
             const initialBalance = 50.00;
             const expectedBalance = initialBalance + amount;
             const mockWallet = { id: walletId, balance: initialBalance };
@@ -150,18 +150,18 @@ describe('PaymentService Unit Tests', () => {
             });
             expect(prisma.transaction.create).toHaveBeenCalledWith({
                 data: {
-                    wallet_id: walletId,
+                    walletId: walletId,
                     type: 'credit',
                     amount: amount,
-                    balance_after: expectedBalance,
-                    reference_type: referenceType,
-                    reference_id: referenceId,
+                    balanceAfter: expectedBalance,
+                    referenceType: referenceType,
+                    referenceId: referenceId,
                     description: description
                 }
             });
         });
 
-        it('should handle payment with zero amount', async () => {
+        it('should handle payment with zero amount', async() => {
             const zeroAmount = 0;
             const initialBalance = 100.00;
             const mockWallet = { id: walletId, balance: initialBalance };
@@ -195,7 +195,7 @@ describe('PaymentService Unit Tests', () => {
         const referenceId = 'ref-456';
         const description = 'Meal payment';
 
-        it('should throw error if wallet not found', async () => {
+        it('should throw error if wallet not found', async() => {
             prisma.wallet.findUnique.mockResolvedValue(null);
             await expect(
                 PaymentService.deductFromWallet(walletId, amount, referenceType, referenceId, description)
@@ -205,7 +205,7 @@ describe('PaymentService Unit Tests', () => {
             });
         });
 
-        it('should throw error if balance is insufficient', async () => {
+        it('should throw error if balance is insufficient', async() => {
             const lowBalance = 20.00;
             prisma.wallet.findUnique.mockResolvedValue({ id: walletId, balance: lowBalance });
             await expect(
@@ -213,7 +213,7 @@ describe('PaymentService Unit Tests', () => {
             ).rejects.toThrow('Insufficient balance');
         });
 
-        it('should succeed when balance equals amount', async () => {
+        it('should succeed when balance equals amount', async() => {
             const exactBalance = 50.25;
             const initialBalance = exactBalance;
             const expectedBalance = initialBalance - amount;
@@ -239,7 +239,7 @@ describe('PaymentService Unit Tests', () => {
             expect(result.wallet.balance).toBe(expectedBalance);
         });
 
-        it('should successfully deduct from wallet and create transaction', async () => {
+        it('should successfully deduct from wallet and create transaction', async() => {
             const initialBalance = 100.00;
             const expectedBalance = initialBalance - amount;
             const mockWallet = { id: walletId, balance: initialBalance };
@@ -277,18 +277,18 @@ describe('PaymentService Unit Tests', () => {
             });
             expect(prisma.transaction.create).toHaveBeenCalledWith({
                 data: {
-                    wallet_id: walletId,
+                    walletId: walletId,
                     type: 'debit',
                     amount: amount,
-                    balance_after: expectedBalance,
-                    reference_type: referenceType,
-                    reference_id: referenceId,
+                    balanceAfter: expectedBalance,
+                    referenceType: referenceType,
+                    referenceId: referenceId,
                     description: description
                 }
             });
         });
 
-        it('should handle decimal amounts correctly', async () => {
+        it('should handle decimal amounts correctly', async() => {
             const decimalAmount = 15.99;
             const initialBalance = 100.50;
             const expectedBalance = initialBalance - decimalAmount;
@@ -323,7 +323,7 @@ describe('PaymentService Unit Tests', () => {
         const referenceId = 'ref-789';
         const description = 'Refund payment';
 
-        it('should call processPayment internally', async () => {
+        it('should call processPayment internally', async() => {
             const initialBalance = 50.00;
             const expectedBalance = initialBalance + amount;
             const mockWallet = { id: walletId, balance: initialBalance };
@@ -359,7 +359,7 @@ describe('PaymentService Unit Tests', () => {
             });
         });
 
-        it('should throw error if wallet not found (via processPayment)', async () => {
+        it('should throw error if wallet not found (via processPayment)', async() => {
             prisma.wallet.findUnique.mockResolvedValue(null);
             await expect(
                 PaymentService.refundToWallet(walletId, amount, referenceType, referenceId, description)
