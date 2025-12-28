@@ -432,3 +432,5 @@ Testler hariç tüm zorunlu özellikler implement edilmiştir. Placeholder imple
 
 **Uyumluluk Oranı: %95**
 
+
+

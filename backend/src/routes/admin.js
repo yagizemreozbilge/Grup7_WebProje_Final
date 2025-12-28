@@ -15,3 +15,5 @@ router.post('/assign-instructor', authenticate, authorize(['admin']), adminContr
 
 module.exports = router;
 
+
+

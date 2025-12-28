@@ -105,9 +105,12 @@ exports.markAttendanceQR = async (req, res) => {
  */
 exports.giveAttendance = async (req, res) => {
   try {
+    console.log('=== GIVE ATTENDANCE START ===');
     const { sessionId } = req.params;
     const userId = req.user.id;
     const userRole = req.user.role;
+    
+    console.log('Request params:', { sessionId, userId, userRole });
     
     // Sadece öğrenciler yoklama verebilir
     if (userRole !== 'student') {
@@ -118,6 +121,8 @@ exports.giveAttendance = async (req, res) => {
     const student = await prisma.student.findUnique({ 
       where: { userId: userId } 
     });
+    console.log('Student found:', student ? { id: student.id, userId: student.userId } : 'NOT FOUND');
+    
     if (!student) {
       return res.status(404).json({ error: 'Öğrenci kaydı bulunamadı' });
     }
@@ -130,7 +135,14 @@ exports.giveAttendance = async (req, res) => {
 
     // Check if session exists and is active
     const session = await prisma.attendance_sessions.findUnique({
-      where: { id: sessionId }
+      where: { id: sessionId },
+      include: {
+        section: {
+          include: {
+            courses: true
+          }
+        }
+      }
     });
 
     if (!session) {
@@ -148,34 +160,97 @@ exports.giveAttendance = async (req, res) => {
     }
 
     // Check if student is enrolled in this section
-    // Önce herhangi bir enrollment kaydı var mı kontrol et (status kontrolü olmadan)
+    console.log('Checking enrollment:', {
+      studentId: student.id,
+      sectionId: session.section_id
+    });
+    
+    // Önce herhangi bir enrollment kaydı var mı kontrol et
     const enrollmentCheck = await prisma.enrollments.findFirst({
       where: {
         student_id: student.id,
         section_id: session.section_id
+      },
+      include: {
+        section: {
+          include: {
+            courses: true
+          }
+        }
       }
     });
 
+    console.log('Enrollment check result:', enrollmentCheck ? {
+      id: enrollmentCheck.id,
+      status: enrollmentCheck.status,
+      studentId: enrollmentCheck.student_id,
+      sectionId: enrollmentCheck.section_id
+    } : 'NOT FOUND');
+
     if (!enrollmentCheck) {
-      console.log('Enrollment not found:', {
+      console.error('❌ Enrollment not found:', {
         studentId: student.id,
+        studentUserId: userId,
         sectionId: session.section_id,
-        sessionId: sessionId
+        sessionId: sessionId,
+        sectionName: session.section?.courses?.name || 'Unknown'
       });
-      return res.status(403).json({ error: 'Bu derse kayıtlı değilsiniz' });
+      
+      // Tüm enrollment'ları kontrol et (debug için)
+      const allEnrollments = await prisma.enrollments.findMany({
+        where: { student_id: student.id },
+        include: { section: { include: { courses: true } } }
+      });
+      console.log('All student enrollments:', allEnrollments.map(e => ({
+        id: e.id,
+        sectionId: e.section_id,
+        sectionName: e.section?.courses?.name,
+        status: e.status
+      })));
+      
+      // Daha açıklayıcı hata mesajı
+      const sectionInfo = await prisma.course_sections.findUnique({
+        where: { id: session.section_id },
+        include: { courses: true }
+      });
+      
+      // Daha açıklayıcı hata mesajı ve çözüm önerisi
+      const errorMessage = sectionInfo 
+        ? `Bu derse kayıtlı değilsiniz. Ders: ${sectionInfo.courses.name} (${sectionInfo.courses.code}) - Şube: ${sectionInfo.section_number || 'N/A'}. Lütfen önce "Ders Seçimi" sayfasından derse kayıt olun.`
+        : 'Bu derse kayıtlı değilsiniz. Lütfen önce "Ders Seçimi" sayfasından derse kayıt olun.';
+      
+      return res.status(403).json({ 
+        error: errorMessage,
+        code: 'NOT_ENROLLED',
+        sectionId: session.section_id,
+        courseName: sectionInfo?.courses?.name,
+        courseCode: sectionInfo?.courses?.code
+      });
     }
 
-    // Status kontrolü: 'active' veya null/boş string ise kabul et
-    // Prisma schema'da default 'active' ama bazı kayıtlar farklı olabilir
-    const validStatuses = ['active', 'enrolled', null, ''];
-    if (enrollmentCheck.status && !validStatuses.includes(enrollmentCheck.status)) {
+    // Status kontrolü: Sadece aktif kayıtlar yoklama verebilir
+    // 'active' ve 'enrolled' geçerli status'lerdir
+    const validStatuses = ['active', 'enrolled'];
+    const enrollmentStatus = enrollmentCheck.status?.toLowerCase() || '';
+    
+    if (!validStatuses.includes(enrollmentStatus)) {
       console.log('Enrollment status issue:', {
         enrollmentId: enrollmentCheck.id,
         status: enrollmentCheck.status,
         studentId: student.id,
-        sectionId: session.section_id
+        sectionId: session.section_id,
+        validStatuses: validStatuses
       });
-      return res.status(403).json({ error: 'Bu ders için kayıt durumunuz aktif değil' });
+      
+      const statusMessages = {
+        'dropped': 'Bu dersten kaydınız silinmiş',
+        'completed': 'Bu ders tamamlanmış',
+        'failed': 'Bu ders başarısız',
+        'withdrawn': 'Bu dersten çekilmişsiniz'
+      };
+      
+      const message = statusMessages[enrollmentStatus] || 'Bu ders için kayıt durumunuz aktif değil';
+      return res.status(403).json({ error: message });
     }
 
     // Enrollment var ve aktif, devam et

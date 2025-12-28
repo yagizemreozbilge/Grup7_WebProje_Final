@@ -93,29 +93,46 @@ exports.getSectionGrades = async (req, res) => {
 
 exports.getMySections = async (req, res) => {
   try {
+    console.log('=== GET MY SECTIONS START ===');
     const userId = req.user.id;
     const userRole = req.user.role;
+
+    console.log('User info:', { userId, userRole });
+
+    // Role kontrolü: Sadece admin ve faculty erişebilir
+    if (userRole !== 'admin' && userRole !== 'faculty') {
+      console.log('❌ Unauthorized role:', userRole);
+      return res.status(403).json({ error: 'Bu işlem için öğretim görevlisi veya admin yetkisi gereklidir' });
+    }
 
     let sections;
 
     // Admin tüm dersleri görebilir
     if (userRole === 'admin') {
+      console.log('Admin access - fetching all sections');
       sections = await prisma.course_sections.findMany({
         include: { courses: true }
       });
     } else {
       // Find faculty profile
+      console.log('Faculty access - looking for faculty profile');
       const faculty = await prisma.faculty.findFirst({
         where: { userId: userId }
       });
+      
+      console.log('Faculty profile:', faculty ? { id: faculty.id, userId: faculty.userId } : 'NOT FOUND');
+      
       if (!faculty) {
+        console.error('❌ Faculty profile not found for userId:', userId);
         return res.status(404).json({ error: 'Öğretim görevlisi profili bulunamadı' });
       }
 
+      console.log('Fetching sections for faculty:', faculty.id);
       sections = await prisma.course_sections.findMany({
         where: { instructor_id: faculty.id },
         include: { courses: true }
       });
+      console.log('Found sections:', sections.length);
     }
 
     res.json({

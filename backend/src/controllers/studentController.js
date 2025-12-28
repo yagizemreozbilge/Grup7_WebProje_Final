@@ -232,9 +232,10 @@ exports.getMyAttendance = async (req, res) => {
       courseName: record.session.section.courses.name,
       date: record.session.date,
       checkInTime: record.check_in_time,
-      status: record.is_flagged ? 'flagged' : 'present', // Fixed for frontend compatibility
+      status: 'present', // Şüpheli yoklamalar da "Katıldı" olarak gösterilir
       distance: record.distance_from_center,
-      flagReason: record.flag_reason
+      flagReason: record.flag_reason,
+      isFlagged: record.is_flagged // Arka planda tutulur ama gösterilmez
     }));
 
     res.json(formattedRecords);
@@ -274,14 +275,18 @@ exports.getAttendanceSummary = async (req, res) => {
         }
       });
 
-      // Find sessions attended by student
+      // Find sessions attended by student (including flagged/suspicious)
+      // Şüpheli yoklamalar da katılım olarak sayılır çünkü öğrenci yoklama vermiştir
       const attendedCount = await prisma.attendance_records.count({
         where: {
           student_id: student.id,
           session: { section_id: enrollment.section_id }
+          // is_flagged kontrolü yapmıyoruz çünkü şüpheli yoklamalar da katılım sayılır
         }
       });
 
+      // Devamsızlık = Toplam Session - Katılım (şüpheli dahil)
+      // Şüpheli yoklamalar devamsızlık değil, katılım olarak sayılır
       const absentCount = Math.max(0, totalSessions - attendedCount);
       const remaining = Math.max(0, limit - absentCount);
 
