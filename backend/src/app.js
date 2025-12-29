@@ -83,32 +83,40 @@ app.use((req, res, next) => {
 });
 
 // Rate limiting (enhanced protection)
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
-    res.status(429).json({
-      success: false,
-      error: 'Too many requests, please try again later.'
-    });
-  }
-});
+// Development ortamında rate limit'i devre dışı bırak veya çok yüksek limit koy
+if (process.env.NODE_ENV === 'production') {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Production: 100 requests per 15 minutes
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
+      res.status(429).json({
+        success: false,
+        error: 'Too many requests, please try again later.'
+      });
+    }
+  });
 
-app.use('/api/v1/', limiter);
+  app.use('/api/v1/', limiter);
 
-// Stricter rate limiting for auth endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5, // Limit to 5 requests per windowMs
-  message: 'Too many authentication attempts, please try again later.',
-  skipSuccessfulRequests: true
-});
+  // Stricter rate limiting for auth endpoints
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5, // Production: 5 requests per 15 minutes
+    message: 'Too many authentication attempts, please try again later.',
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false
+  });
 
-app.use('/api/v1/auth/', authLimiter);
+  app.use('/api/v1/auth/', authLimiter);
+} else {
+  // Development: Rate limit devre dışı veya çok yüksek limit
+  console.log('⚠️  Rate limiting disabled in development mode');
+}
 
 // Routes
 app.use('/api/v1', indexRouter);

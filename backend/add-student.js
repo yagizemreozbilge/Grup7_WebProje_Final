@@ -86,3 +86,6 @@ async function addStudent() {
 // Run the script
 addStudent();
 
+
+
+

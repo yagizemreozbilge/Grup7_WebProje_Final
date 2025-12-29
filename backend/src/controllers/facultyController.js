@@ -129,15 +129,33 @@ exports.getMySections = async (req, res) => {
 
       console.log('Fetching sections for faculty:', faculty.id);
       sections = await prisma.course_sections.findMany({
-        where: { instructor_id: faculty.id },
+        where: { instructor_id: faculty.id, deleted_at: null },
         include: { courses: true }
       });
       console.log('Found sections:', sections.length);
     }
 
-    res.json({
-      success: true,
-      data: sections.map(s => ({
+    // Instructor bilgilerini ekle
+    const sectionsWithInstructor = await Promise.all(sections.map(async (s) => {
+      let instructor = null;
+      if (s.instructor_id) {
+        try {
+          instructor = await prisma.faculty.findUnique({
+            where: { id: s.instructor_id },
+            include: {
+              user: {
+                select: {
+                  fullName: true
+                }
+              }
+            }
+          });
+        } catch (err) {
+          console.error('Error fetching instructor:', err);
+        }
+      }
+
+      return {
         id: s.id,
         courseCode: s.courses.code,
         courseName: s.courses.name,
@@ -148,11 +166,20 @@ exports.getMySections = async (req, res) => {
         enrolled_count: s.enrolled_count,
         enrolledCount: s.enrolled_count,
         capacity: s.capacity,
+        instructor: instructor ? {
+          id: instructor.id,
+          fullName: instructor.user?.fullName || 'Bilinmiyor'
+        } : null,
         courses: {
           code: s.courses.code,
           name: s.courses.name
         }
-      }))
+      };
+    }));
+
+    res.json({
+      success: true,
+      data: sectionsWithInstructor
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

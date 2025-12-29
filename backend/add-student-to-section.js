@@ -122,3 +122,6 @@ async function addStudentToSection(sectionId) {
 const sectionId = process.argv[2];
 addStudentToSection(sectionId);
 
+
+
+
