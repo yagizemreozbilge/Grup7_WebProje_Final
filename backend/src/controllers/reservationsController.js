@@ -34,12 +34,12 @@ const reservationsController = {
         });
       }
 
-      // Check user permissions (students may need approval)
+      // Check user permissions (students and faculty need approval)
       const user = await prisma.user.findUnique({
         where: { id: userId }
       });
 
-      const needsApproval = user.role === 'student';
+      const needsApproval = user.role === 'student' || user.role === 'faculty';
 
       // Create reservation
       const reservation = await prisma.classroomReservation.create({
@@ -110,8 +110,9 @@ const reservationsController = {
 
       const where = {};
 
-      // Students can only see their own reservations
-      if (userRole === 'student') {
+      // Students and faculty can only see their own reservations
+      // Admin can see all reservations
+      if (userRole === 'student' || userRole === 'faculty') {
         where.user_id = userId;
       }
 
