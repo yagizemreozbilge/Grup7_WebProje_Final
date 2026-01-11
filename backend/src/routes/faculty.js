@@ -11,8 +11,4 @@ router.get('/sections', authenticate, facultyController.getMySections);
 router.post('/grades', authenticate, facultyController.enterGrade);
 router.get('/grades/:sectionId', authenticate, facultyController.getSectionGrades);
 
-// Gradebook endpoints
-router.get('/gradebook/:sectionId', authenticate, facultyController.getGradebook);
-router.post('/gradebook/:sectionId', authenticate, facultyController.saveGradebook);
-
 module.exports = router;

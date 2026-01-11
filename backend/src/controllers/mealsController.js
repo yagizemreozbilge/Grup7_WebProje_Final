@@ -16,14 +16,13 @@ const mealsController = {
       if (date) {
         // Parse date and create range for the entire day
         const dateObj = new Date(date);
-        const startOfDay = new Date(dateObj);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(dateObj);
-        endOfDay.setHours(23, 59, 59, 999);
+        dateObj.setHours(0, 0, 0, 0);
+        const nextDay = new Date(dateObj);
+        nextDay.setDate(nextDay.getDate() + 1);
         
         where.date = {
-          gte: startOfDay,
-          lte: endOfDay
+          gte: dateObj,
+          lt: nextDay
         };
       }
 

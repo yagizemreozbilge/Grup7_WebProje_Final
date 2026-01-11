@@ -316,8 +316,8 @@ const login = async (email, password, twoFactorToken = null) => {
     throw err;
   }
   
-  // Check if 2FA is enabled
-  if (user.twoFactorEnabled) {
+  // Check if 2FA is enabled (only if field exists)
+  if (user.twoFactorEnabled === true) {
     if (!twoFactorToken) {
       // Generate temporary token for 2FA verification
       const tempToken = generateAccessToken({ id: user.id, email: user.email, role: user.role }, '5m');

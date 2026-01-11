@@ -1,6 +1,7 @@
 const prisma = require('../prisma');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
+const ExcelService = require('../services/excelService');
 
 const analyticsController = {
   // GET /api/v1/analytics/dashboard - Admin dashboard statistics
@@ -644,38 +645,33 @@ const analyticsController = {
       }
 
       if (format === 'excel') {
-        const workbook = new ExcelJS.Workbook();
-        const worksheet = workbook.addWorksheet(`${type}_report`);
-
         let data = [];
         let headers = [];
 
         switch (type) {
           case 'academic':
-            data = await this.getAcademicPerformanceData();
-            headers = ['Department', 'Average GPA'];
+            data = await analyticsController.getAcademicPerformanceData();
+            headers = ['Bölüm', 'Ortalama GPA', 'En Düşük GPA', 'En Yüksek GPA', 'Öğrenci Sayısı'];
             break;
           case 'attendance':
-            data = await this.getAttendanceData();
-            headers = ['Course Code', 'Course Name', 'Total Sessions', 'Total Records', 'Attendance Rate'];
+            data = await analyticsController.getAttendanceData();
+            headers = ['Ders Kodu', 'Ders Adı', 'Bölüm', 'Toplam Oturum', 'Öğrenci Sayısı', 'Toplam Kayıt', 'İşaretli Kayıt', 'Katılım Oranı (%)'];
             break;
           case 'meal':
-            data = await this.getMealData();
-            headers = ['Date', 'Breakfast', 'Lunch', 'Dinner', 'Total'];
+            data = await analyticsController.getMealData();
+            headers = ['Tarih', 'Kahvaltı', 'Öğle', 'Akşam', 'Toplam Rezervasyon', 'Kullanılan', 'İptal Edilen', 'Toplam Tutar'];
             break;
           case 'event':
-            data = await this.getEventData();
-            headers = ['Event', 'Category', 'Registrations', 'Capacity', 'Registration Rate'];
+            data = await analyticsController.getEventData();
+            headers = ['Etkinlik', 'Kategori', 'Tarih', 'Konum', 'Kayıt Sayısı', 'Katılan', 'Kapasite', 'Kayıt Oranı (%)', 'Katılım Oranı (%)', 'Ücret'];
             break;
         }
 
-        worksheet.addRow(headers);
-        data.forEach(row => {
-          worksheet.addRow(Array.isArray(row) ? row : Object.values(row));
-        });
+        // Create modern Excel report
+        const workbook = await ExcelService.createAnalyticsReport(type, data, headers);
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${type}_report.xlsx`);
+        res.setHeader('Content-Disposition', `attachment; filename=${type}_raporu.xlsx`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -686,20 +682,20 @@ const analyticsController = {
 
         switch (type) {
           case 'academic':
-            data = await this.getAcademicPerformanceData();
-            headers = ['Department', 'Average GPA'];
+            data = await analyticsController.getAcademicPerformanceData();
+            headers = ['Bölüm', 'Ortalama GPA', 'En Düşük GPA', 'En Yüksek GPA', 'Öğrenci Sayısı'];
             break;
           case 'attendance':
-            data = await this.getAttendanceData();
-            headers = ['Course Code', 'Course Name', 'Total Sessions', 'Total Records', 'Attendance Rate'];
+            data = await analyticsController.getAttendanceData();
+            headers = ['Ders Kodu', 'Ders Adı', 'Bölüm', 'Toplam Oturum', 'Öğrenci Sayısı', 'Toplam Kayıt', 'İşaretli Kayıt', 'Katılım Oranı (%)'];
             break;
           case 'meal':
-            data = await this.getMealData();
-            headers = ['Date', 'Breakfast', 'Lunch', 'Dinner', 'Total'];
+            data = await analyticsController.getMealData();
+            headers = ['Tarih', 'Kahvaltı', 'Öğle', 'Akşam', 'Toplam Rezervasyon', 'Kullanılan', 'İptal Edilen', 'Toplam Tutar'];
             break;
           case 'event':
-            data = await this.getEventData();
-            headers = ['Event', 'Category', 'Registrations', 'Capacity', 'Registration Rate'];
+            data = await analyticsController.getEventData();
+            headers = ['Etkinlik', 'Kategori', 'Tarih', 'Konum', 'Kayıt Sayısı', 'Katılan', 'Kapasite', 'Kayıt Oranı (%)', 'Katılım Oranı (%)', 'Ücret'];
             break;
         }
 
@@ -725,19 +721,35 @@ const analyticsController = {
   // Helper methods for export
   async getAcademicPerformanceData() {
     try {
-      const gpaByDepartment = await prisma.student.groupBy({
-        by: ['departmentId'],
-        _avg: { gpa: true }
+      const departments = await prisma.department.findMany({
+        include: {
+          students: {
+            where: {
+              gpa: { not: null }
+            }
+          }
+        }
       });
-      const departments = await prisma.department.findMany();
-      const deptMap = {};
-      departments.forEach(dept => { deptMap[dept.id] = dept.name; });
       
-      return gpaByDepartment.map(item => [
-        deptMap[item.departmentId] || 'Unknown',
-        item._avg.gpa ? parseFloat(item._avg.gpa).toFixed(2) : '0.00'
-      ]);
+      return departments.map(dept => {
+        const students = dept.students || [];
+        const gpas = students.map(s => parseFloat(s.gpa || 0)).filter(g => g > 0);
+        const avgGpa = gpas.length > 0 
+          ? (gpas.reduce((a, b) => a + b, 0) / gpas.length).toFixed(2)
+          : '0.00';
+        const minGpa = gpas.length > 0 ? Math.min(...gpas).toFixed(2) : '0.00';
+        const maxGpa = gpas.length > 0 ? Math.max(...gpas).toFixed(2) : '0.00';
+        
+        return [
+          dept.name || 'Bilinmeyen',
+          avgGpa,
+          minGpa,
+          maxGpa,
+          students.length.toString()
+        ];
+      });
     } catch (error) {
+      console.error('Error getting academic data:', error);
       return [];
     }
   },
@@ -749,24 +761,53 @@ const analyticsController = {
         include: {
           sections: {
             include: {
-              attendanceSessions: true,
-              enrollments: true
+              attendanceSessions: {
+                include: {
+                  attendanceRecords: true
+                }
+              },
+              enrollments: {
+                where: { status: 'active' }
+              }
             }
-          }
+          },
+          departments: true
         }
       });
       
       return courses.map(course => {
         let totalSessions = 0;
         let totalRecords = 0;
+        let totalStudents = 0;
+        let flaggedRecords = 0;
+        
         course.sections.forEach(section => {
           totalSessions += section.attendanceSessions.length;
-          totalRecords += section.attendanceSessions.reduce((sum, s) => sum + (s.attendanceRecords?.length || 0), 0);
+          section.attendanceSessions.forEach(session => {
+            const records = session.attendanceRecords || [];
+            totalRecords += records.length;
+            flaggedRecords += records.filter(r => r.is_flagged).length;
+          });
+          totalStudents += section.enrollments.length;
         });
-        const rate = totalSessions > 0 ? (totalRecords / totalSessions) * 100 : 0;
-        return [course.code, course.name, totalSessions, totalRecords, rate.toFixed(2) + '%'];
+        
+        const rate = totalSessions > 0 && totalStudents > 0 
+          ? ((totalRecords / (totalSessions * totalStudents)) * 100).toFixed(2)
+          : '0.00';
+        
+        return [
+          course.code || 'N/A',
+          course.name || 'Bilinmeyen',
+          course.departments?.name || 'N/A',
+          totalSessions.toString(),
+          totalStudents.toString(),
+          totalRecords.toString(),
+          flaggedRecords.toString(),
+          rate + '%'
+        ];
       });
     } catch (error) {
+      console.error('Error getting attendance data:', error);
       return [];
     }
   },
@@ -774,6 +815,10 @@ const analyticsController = {
   async getMealData() {
     try {
       const reservations = await prisma.mealReservation.findMany({
+        include: {
+          cafeteria: true,
+          menu: true
+        },
         orderBy: { date: 'asc' }
       });
       
@@ -781,14 +826,36 @@ const analyticsController = {
       reservations.forEach(r => {
         const dateKey = r.date.toISOString().split('T')[0];
         if (!dailyData[dateKey]) {
-          dailyData[dateKey] = { date: dateKey, breakfast: 0, lunch: 0, dinner: 0, total: 0 };
+          dailyData[dateKey] = { 
+            date: dateKey, 
+            breakfast: 0, 
+            lunch: 0, 
+            dinner: 0, 
+            total: 0,
+            totalAmount: 0,
+            used: 0,
+            cancelled: 0
+          };
         }
         dailyData[dateKey][r.mealType]++;
         dailyData[dateKey].total++;
+        dailyData[dateKey].totalAmount += parseFloat(r.amount || 0);
+        if (r.status === 'used') dailyData[dateKey].used++;
+        if (r.status === 'cancelled') dailyData[dateKey].cancelled++;
       });
       
-      return Object.values(dailyData).map(d => [d.date, d.breakfast, d.lunch, d.dinner, d.total]);
+      return Object.values(dailyData).map(d => [
+        new Date(d.date).toLocaleDateString('tr-TR'),
+        d.breakfast.toString(),
+        d.lunch.toString(),
+        d.dinner.toString(),
+        d.total.toString(),
+        d.used.toString(),
+        d.cancelled.toString(),
+        d.totalAmount.toFixed(2) + ' ₺'
+      ]);
     } catch (error) {
+      console.error('Error getting meal data:', error);
       return [];
     }
   },
@@ -796,17 +863,45 @@ const analyticsController = {
   async getEventData() {
     try {
       const events = await prisma.event.findMany({
-        include: { registrations: true }
+        include: { 
+          registrations: {
+            include: {
+              user: {
+                select: {
+                  fullName: true,
+                  email: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: { date: 'desc' }
       });
       
-      return events.map(event => [
-        event.title,
-        event.category,
-        event.registeredCount,
-        event.capacity,
-        event.capacity > 0 ? ((event.registeredCount / event.capacity) * 100).toFixed(2) + '%' : '0%'
-      ]);
+      return events.map(event => {
+        const checkedIn = event.registrations.filter(r => r.checkedIn).length;
+        const rate = event.capacity > 0 
+          ? ((event.registeredCount / event.capacity) * 100).toFixed(2)
+          : '0.00';
+        const checkInRate = event.registeredCount > 0
+          ? ((checkedIn / event.registeredCount) * 100).toFixed(2)
+          : '0.00';
+        
+        return [
+          event.title || 'Bilinmeyen',
+          event.category || 'N/A',
+          new Date(event.date).toLocaleDateString('tr-TR'),
+          event.location || 'N/A',
+          event.registeredCount.toString(),
+          checkedIn.toString(),
+          event.capacity.toString(),
+          rate + '%',
+          checkInRate + '%',
+          event.isPaid ? (parseFloat(event.price || 0).toFixed(2) + ' ₺') : 'Ücretsiz'
+        ];
+      });
     } catch (error) {
+      console.error('Error getting event data:', error);
       return [];
     }
   }

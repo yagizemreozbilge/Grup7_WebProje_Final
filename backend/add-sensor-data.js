@@ -22,42 +22,58 @@ async function addSensorData() {
     
     console.log('\n📊 Adding sample data to sensors...\n');
     
-    // Her sensör için son 24 saat içinde örnek veriler ekle
+    // Her sensör için son 30 gün içinde örnek veriler ekle
     const now = new Date();
-    const hoursToAdd = 24;
-    const dataPointsPerHour = 4; // Her saatte 4 veri noktası (15 dakikada bir)
+    const daysToAdd = 30; // Son 30 gün
+    const dataPointsPerDay = 24; // Her günde 24 veri noktası (saatte bir)
     
     for (const sensor of sensors) {
       console.log(`📈 Adding data for: ${sensor.name}...`);
       
       let addedCount = 0;
       
-      for (let hour = 0; hour < hoursToAdd; hour++) {
-        for (let point = 0; point < dataPointsPerHour; point++) {
+      for (let day = 0; day < daysToAdd; day++) {
+        for (let hour = 0; hour < dataPointsPerDay; hour++) {
           const timestamp = new Date(now);
+          timestamp.setDate(timestamp.getDate() - day);
           timestamp.setHours(timestamp.getHours() - hour);
-          timestamp.setMinutes(timestamp.getMinutes() - (point * 15));
+          timestamp.setMinutes(0);
+          timestamp.setSeconds(0);
+          timestamp.setMilliseconds(0);
           
           // Sensör tipine göre gerçekçi değerler üret
           let value;
-          const randomVariation = () => (Math.random() - 0.5) * 0.2; // ±10% varyasyon
+          const randomVariation = () => (Math.random() - 0.5) * 0.15; // ±7.5% varyasyon
+          const currentHour = (24 - hour) % 24;
+          const isDayTime = currentHour >= 8 && currentHour <= 20;
           
           switch (sensor.type.toLowerCase()) {
             case 'energy':
-              // Enerji sensörü: 50-200 kWh arası
-              const baseEnergy = 100 + (hour % 12 < 6 ? 50 : -30); // Gündüz daha yüksek
+              // Enerji sensörü: 50-200 kWh arası, gündüz daha yüksek
+              const baseEnergy = isDayTime ? 120 + Math.random() * 50 : 60 + Math.random() * 30;
               value = baseEnergy + (baseEnergy * randomVariation());
               break;
               
             case 'occupancy':
-              // Doluluk sensörü: 0-100 arası
-              const baseOccupancy = 30 + (hour % 12 < 6 ? 40 : -20); // Gündüz daha dolu
+              // Doluluk sensörü: 0-100 arası, gündüz ve hafta içi daha dolu
+              const dayOfWeek = timestamp.getDay(); // 0=Pazar, 6=Cumartesi
+              const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+              let baseOccupancy;
+              if (isWeekday && isDayTime) {
+                baseOccupancy = 50 + Math.random() * 40; // Hafta içi gündüz: 50-90
+              } else if (isWeekday) {
+                baseOccupancy = 10 + Math.random() * 20; // Hafta içi gece: 10-30
+              } else if (isDayTime) {
+                baseOccupancy = 20 + Math.random() * 30; // Hafta sonu gündüz: 20-50
+              } else {
+                baseOccupancy = 5 + Math.random() * 10; // Hafta sonu gece: 5-15
+              }
               value = Math.max(0, Math.min(100, baseOccupancy + (baseOccupancy * randomVariation())));
               break;
               
             case 'temperature':
-              // Sıcaklık sensörü: 18-25°C arası
-              const baseTemp = 21 + (hour % 12 < 6 ? 2 : -1); // Gündüz daha sıcak
+              // Sıcaklık sensörü: 18-25°C arası, gündüz daha sıcak
+              const baseTemp = isDayTime ? 22 + Math.random() * 3 : 19 + Math.random() * 2;
               value = baseTemp + (baseTemp * randomVariation());
               break;
               
@@ -78,8 +94,8 @@ async function addSensorData() {
                 timestamp: timestamp,
                 metadata: {
                   source: 'sample_data',
-                  hour: hour,
-                  point: point
+                  day: day,
+                  hour: hour
                 }
               }
             });
@@ -116,6 +132,9 @@ async function addSensorData() {
 }
 
 addSensorData();
+
+
+
 
 
 

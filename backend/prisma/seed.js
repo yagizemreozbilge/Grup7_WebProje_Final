@@ -350,6 +350,93 @@ async function main() {
   }
 
   console.log(`Created ${classrooms.length} classrooms.`);
+
+  // Add sensor data for all active sensors
+  console.log('\n📊 Adding sensor data...');
+  try {
+    const sensors = await prisma.sensor.findMany({
+      where: { isActive: true }
+    });
+
+    if (sensors.length > 0) {
+      const daysToAdd = 30;
+      const dataPointsPerDay = 24;
+      const now = new Date();
+      let totalDataPoints = 0;
+
+      for (const sensor of sensors) {
+        let addedCount = 0;
+        
+        for (let day = 0; day < daysToAdd; day++) {
+          for (let hour = 0; hour < dataPointsPerDay; hour++) {
+            const timestamp = new Date(now);
+            timestamp.setDate(timestamp.getDate() - day);
+            timestamp.setHours(timestamp.getHours() - hour);
+            timestamp.setMinutes(0);
+            timestamp.setSeconds(0);
+            timestamp.setMilliseconds(0);
+            
+            let value;
+            const randomVariation = () => (Math.random() - 0.5) * 0.15;
+            const currentHour = (24 - hour) % 24;
+            const isDayTime = currentHour >= 8 && currentHour <= 20;
+            
+            switch (sensor.type.toLowerCase()) {
+              case 'energy':
+                const baseEnergy = isDayTime ? 120 + Math.random() * 50 : 60 + Math.random() * 30;
+                value = baseEnergy + (baseEnergy * randomVariation());
+                break;
+              case 'occupancy':
+                const dayOfWeek = timestamp.getDay();
+                const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+                let baseOccupancy;
+                if (isWeekday && isDayTime) {
+                  baseOccupancy = 50 + Math.random() * 40;
+                } else if (isWeekday) {
+                  baseOccupancy = 10 + Math.random() * 20;
+                } else if (isDayTime) {
+                  baseOccupancy = 20 + Math.random() * 30;
+                } else {
+                  baseOccupancy = 5 + Math.random() * 10;
+                }
+                value = Math.max(0, Math.min(100, baseOccupancy + (baseOccupancy * randomVariation())));
+                break;
+              case 'temperature':
+                const baseTemp = isDayTime ? 22 + Math.random() * 3 : 19 + Math.random() * 2;
+                value = baseTemp + (baseTemp * randomVariation());
+                break;
+              default:
+                value = 50 + (50 * randomVariation());
+            }
+            
+            value = Math.round(value * 100) / 100;
+            
+            try {
+              await prisma.sensorData.create({
+                data: {
+                  sensorId: sensor.id,
+                  value: value,
+                  unit: sensor.unit,
+                  timestamp: timestamp,
+                  metadata: { source: 'seed_data', day, hour }
+                }
+              });
+              addedCount++;
+            } catch (err) {
+              // Ignore duplicate errors
+            }
+          }
+        }
+        
+        totalDataPoints += addedCount;
+      }
+      
+      console.log(`✅ Added ${totalDataPoints} sensor data points for ${sensors.length} sensors.`);
+    }
+  } catch (error) {
+    console.log('⚠️  Could not add sensor data:', error.message);
+  }
+
   console.log('Seed completed successfully for Part 3.');
 }
 

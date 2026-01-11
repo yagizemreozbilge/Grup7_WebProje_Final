@@ -1,6 +1,6 @@
 // src/controllers/attendanceController.js
 const attendanceService = require('../services/attendanceService');
-const ExcelJS = require('exceljs');
+const ExcelService = require('../services/excelService');
 const prisma = require('../prisma');
 
 exports.createSession = async (req, res) => {
@@ -437,23 +437,43 @@ exports.getSessionAttendance = async (req, res) => {
 exports.exportReportExcel = async (req, res) => {
   try {
     const { sectionId } = req.params;
-    // Örnek veri: Gerçek uygulamada attendanceService.getReport(sectionId) ile alınmalı
+    
+    // Get report data
     const report = await attendanceService.getReport(sectionId);
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Yoklama Raporu');
-    sheet.columns = [
-      { header: 'Öğrenci No', key: 'studentNumber', width: 15 },
-      { header: 'Ad Soyad', key: 'fullName', width: 25 },
-      { header: 'Toplam Devam', key: 'presentCount', width: 15 },
-      { header: 'Toplam Yoklama', key: 'totalCount', width: 15 },
-      { header: 'Devamsızlık (%)', key: 'absencePercent', width: 15 },
-    ];
-    report.forEach(row => sheet.addRow(row));
+    
+    // Get section info for title
+    const section = await prisma.course_sections.findUnique({
+      where: { id: sectionId },
+      include: {
+        courses: {
+          select: {
+            code: true,
+            name: true
+          }
+        }
+      }
+    });
+
+    const sectionInfo = section ? {
+      courseCode: section.courses.code,
+      courseName: section.courses.name,
+      sectionNumber: section.section_number
+    } : null;
+
+    // Create modern Excel report
+    const workbook = await ExcelService.createAttendanceReport(report, sectionInfo);
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="yoklama_raporu.xlsx"');
+    res.setHeader('Content-Disposition', `attachment; filename="yoklama_raporu_${sectionId}.xlsx"`);
+    
     await workbook.xlsx.write(res);
     res.end();
   } catch (err) {
-    res.status(500).json({ error: 'Excel export başarısız', details: err.message });
+    console.error('Excel export error:', err);
+    res.status(500).json({ 
+      success: false,
+      error: 'Excel export başarısız', 
+      details: err.message 
+    });
   }
 };

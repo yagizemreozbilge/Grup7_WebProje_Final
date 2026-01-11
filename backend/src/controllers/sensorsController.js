@@ -9,14 +9,36 @@ const sensorsController = {
         where: {
           isActive: true
         },
+        include: {
+          sensorData: {
+            orderBy: {
+              timestamp: 'desc'
+            },
+            take: 1
+          }
+        },
         orderBy: {
           createdAt: 'desc'
         }
       });
 
+      // Add latestReading to each sensor
+      const sensorsWithLatest = sensors.map(sensor => {
+        const latestReading = sensor.sensorData[0] || null;
+        return {
+          ...sensor,
+          latestReading: latestReading ? {
+            value: parseFloat(latestReading.value),
+            unit: latestReading.unit,
+            timestamp: latestReading.timestamp
+          } : null,
+          sensorData: undefined // Remove sensorData array from response
+        };
+      });
+
       res.status(200).json({
         success: true,
-        data: sensors
+        data: sensorsWithLatest
       });
     } catch (error) {
       next(error);
