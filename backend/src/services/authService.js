@@ -1,452 +1,308 @@
-const prisma = require('../prisma');
+const { User, Student, Faculty, Department } = require('../models');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
+const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
+const { validateEmail, validatePassword } = require('../utils/validation');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('./emailService');
-const { validatePassword } = require('../utils/validation');
+const TwoFactorService = require('./twoFactorService');
 
-const toRoleEnum = (role) => (role || '').toLowerCase();
+const register = async(userData) => {
+    const { email, password, role, full_name, student_number, employee_number, department_id, title } = userData;
 
-const sanitizeUser = (user) => {
-  if (!user) return null;
-  // Remove sensitive fields and map camelCase to snake_case for frontend compatibility
-  const { passwordHash, fullName, isVerified, profilePictureUrl, createdAt, updatedAt, student, faculty, ...rest } = user;
-  
-  const sanitized = {
-    ...rest,
-    full_name: fullName,
-    is_verified: isVerified,
-    profile_picture_url: profilePictureUrl,
-    created_at: createdAt,
-    updated_at: updatedAt
-  };
-
-  if (student) {
-    const { studentNumber, departmentId, userId, ...studentRest } = student;
-    sanitized.student = {
-      ...studentRest,
-      student_number: studentNumber,
-      department_id: departmentId,
-      user_id: userId
-    };
-  }
-
-  if (faculty) {
-    const { employeeNumber, departmentId, userId, ...facultyRest } = faculty;
-    sanitized.faculty = {
-      ...facultyRest,
-      employee_number: employeeNumber,
-      department_id: departmentId,
-      user_id: userId
-    };
-  }
-
-  return sanitized;
-};
-
-const register = async (userData) => {
-  console.log('📝 Register request received:', {
-    email: userData.email,
-    role: userData.role,
-    hasStudentNumber: !!userData.student_number,
-    hasEmployeeNumber: !!userData.employee_number,
-    department_id: userData.department_id
-  });
-
-  // Normalize email to lowercase
-  const normalizedEmail = (userData.email || '').toLowerCase().trim();
-  
-  const {
-    password,
-    confirmPassword,
-    role,
-    full_name,
-    student_number,
-    employee_number,
-    department_id,
-    title
-  } = userData;
-  
-  const email = normalizedEmail;
-
-  // Validate required fields
-  if (!email || !password || !role) {
-    const err = new Error('E-posta, şifre ve rol gereklidir');
-    err.code = 'VALIDATION_ERROR';
-    err.statusCode = 400;
-    throw err;
-  }
-
-  if (password !== confirmPassword) {
-    const err = new Error('Şifreler eşleşmiyor');
-    err.code = 'VALIDATION_ERROR';
-    err.statusCode = 400;
-    throw err;
-  }
-
-  // Normalize role to lowercase
-  const normalizedRole = (role || '').toLowerCase();
-
-  if (normalizedRole === 'student' && !student_number) {
-    const err = new Error('Öğrenci numarası gereklidir');
-    err.code = 'VALIDATION_ERROR';
-    err.statusCode = 400;
-    throw err;
-  }
-
-  if (normalizedRole === 'faculty' && (!employee_number || !title)) {
-    const err = new Error('Personel numarası ve ünvan gereklidir');
-    err.code = 'VALIDATION_ERROR';
-    err.statusCode = 400;
-    throw err;
-  }
-
-  if ((normalizedRole === 'student' || normalizedRole === 'faculty') && !department_id) {
-    const err = new Error('Bölüm seçimi gereklidir');
-    err.code = 'VALIDATION_ERROR';
-    err.statusCode = 400;
-    throw err;
-  }
-
-  const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-  if (existing) {
-    const err = new Error('Bu e-posta ile kullanıcı zaten var');
-    err.code = 'CONFLICT';
-    err.statusCode = 409;
-    throw err;
-  }
-
-  if (normalizedRole === 'student' && student_number) {
-    const s = await prisma.student.findUnique({ where: { studentNumber: student_number } });
-    if (s) {
-      const err = new Error('Öğrenci numarası zaten kullanılıyor');
-      err.code = 'CONFLICT';
-      err.statusCode = 409;
-      throw err;
-    }
-  }
-
-  if (normalizedRole === 'faculty' && employee_number) {
-    const f = await prisma.faculty.findUnique({ where: { employeeNumber: employee_number } });
-    if (f) {
-      const err = new Error('Personel numarası zaten kullanılıyor');
-      err.code = 'CONFLICT';
-      err.statusCode = 409;
-      throw err;
-    }
-  }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  // Email verification setting (can be disabled via env variable for development)
-  const requireEmailVerification = process.env.REQUIRE_EMAIL_VERIFICATION !== 'false';
-  const isVerified = requireEmailVerification ? false : true; // If verification required, mark as unverified; otherwise verified
-
-  console.log('💾 Creating user in database...');
-  console.log('📧 Email verification required:', requireEmailVerification);
-
-  try {
-    // Generate verification token if email verification is enabled
-    let verificationToken = null;
-    let verificationExpires = null;
-    
-    if (requireEmailVerification) {
-      const crypto = require('crypto');
-      verificationToken = crypto.randomBytes(32).toString('hex');
-      verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    // Validate email
+    if (!validateEmail(email)) {
+        throw new Error('Invalid email format');
     }
 
-    const created = await prisma.user.create({
-      data: {
-        email: normalizedEmail, // Use normalized email
-        passwordHash,
-        role: toRoleEnum(normalizedRole),
-        fullName: full_name || null,
-        isVerified: isVerified,
-        student: normalizedRole === 'student'
-          ? {
-              create: {
-                studentNumber: student_number,
-                departmentId: department_id,
-                gpa: 0,
-                cgpa: 0
-              }
-            }
-          : undefined,
-        faculty: normalizedRole === 'faculty'
-          ? {
-              create: {
-                employeeNumber: employee_number,
-                departmentId: department_id,
-                title: title
-              }
-            }
-          : undefined,
-        // Create email verification token if verification is enabled
-        emailVerificationToken: requireEmailVerification ? {
-          create: {
-            token: verificationToken,
-            expiresAt: verificationExpires
-          }
-        } : undefined
-      },
-      include: {
-        student: true,
-        faculty: true,
-        emailVerificationToken: true
-      }
+    // Validate password
+    if (!validatePassword(password)) {
+        throw new Error('Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number');
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+        throw new Error('User with this email already exists');
+    }
+
+    // Hash password
+    const password_hash = await bcrypt.hash(password, 10);
+
+    // Generate verification token
+    const verification_token = crypto.randomBytes(32).toString('hex');
+    const verification_token_expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Create user
+    const user = await User.create({
+        email,
+        password_hash,
+        role,
+        full_name,
+        is_verified: false,
+        verification_token,
+        verification_token_expires
     });
 
-    console.log('✅ User created successfully:', created.id);
-
-    // Send verification email if required
-    if (requireEmailVerification && verificationToken) {
-      try {
-        await sendVerificationEmail(normalizedEmail, verificationToken);
-        console.log('📧 Verification email sent to:', normalizedEmail);
-      } catch (emailError) {
-        console.error('⚠️ Failed to send verification email:', emailError.message);
-        // In development, log the verification token if email sending fails
-        if (process.env.NODE_ENV === 'development') {
-          const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email/${verificationToken}`;
-          console.log('🔗 Verification URL (for development):', verificationUrl);
-          console.log('🔑 Verification Token:', verificationToken);
+    // Create role-specific record
+    if (role === 'student') {
+        if (!student_number || !department_id) {
+            throw new Error('Student number and department are required for students');
         }
-        // Don't fail registration if email sending fails
-      }
+
+        const existingStudent = await Student.findOne({ where: { student_number } });
+        if (existingStudent) {
+            await user.destroy();
+            throw new Error('Student number already exists');
+        }
+
+        await Student.create({
+            user_id: user.id,
+            student_number,
+            department_id
+        });
+    } else if (role === 'faculty') {
+        if (!employee_number || !department_id || !title) {
+            throw new Error('Employee number, department, and title are required for faculty');
+        }
+
+        const existingFaculty = await Faculty.findOne({ where: { employee_number } });
+        if (existingFaculty) {
+            await user.destroy();
+            throw new Error('Employee number already exists');
+        }
+
+        await Faculty.create({
+            user_id: user.id,
+            employee_number,
+            department_id,
+            title
+        });
     }
 
-    return { userId: created.id, email: created.email, requiresVerification: requireEmailVerification };
-  } catch (error) {
-    console.error('❌ Error creating user:', error);
-    throw error;
-  }
+    // Send verification email
+    try {
+        await sendVerificationEmail(email, verification_token);
+    } catch (error) {
+        console.error('Failed to send verification email:', error);
+        // Don't fail registration if email fails
+    }
+
+    // Return user without password
+    const userResponse = user.toJSON();
+    delete userResponse.password_hash;
+    delete userResponse.refresh_token;
+    delete userResponse.verification_token;
+    delete userResponse.reset_password_token;
+
+    return userResponse;
 };
 
-const verifyEmail = async (token) => {
-  console.log('🔍 Verifying email with token:', token);
-  
-  const record = await prisma.emailVerificationToken.findUnique({
-    where: { token },
-    include: { user: true }
-  });
+const verifyEmail = async(token) => {
+    const user = await User.findOne({
+        where: {
+            verification_token: token,
+            is_verified: false
+        }
+    });
 
-  console.log('📋 Token record found:', !!record);
-  if (record) {
-    console.log('⏰ Token expires at:', record.expiresAt);
-    console.log('✅ User verified status:', record.user?.isVerified);
-    console.log('📧 User email:', record.user?.email);
-  }
+    if (!user) {
+        throw new Error('Invalid or expired verification token');
+    }
 
-  if (!record) {
-    const err = new Error('Geçersiz doğrulama tokenı');
-    err.code = 'UNAUTHORIZED';
-    err.statusCode = 401;
-    throw err;
-  }
+    if (user.verification_token_expires < new Date()) {
+        throw new Error('Verification token has expired');
+    }
 
-  if (record.expiresAt < new Date()) {
-    const err = new Error('Doğrulama tokenının süresi dolmuş');
-    err.code = 'UNAUTHORIZED';
-    err.statusCode = 401;
-    throw err;
-  }
+    user.is_verified = true;
+    user.verification_token = null;
+    user.verification_token_expires = null;
+    await user.save();
 
-  if (record.user.isVerified) {
-    const err = new Error('E-posta zaten doğrulanmış');
-    err.code = 'BAD_REQUEST';
-    err.statusCode = 400;
-    throw err;
-  }
-
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: record.userId },
-      data: { isVerified: true }
-    }),
-    prisma.emailVerificationToken.delete({ where: { id: record.id } })
-  ]);
-
-  console.log('✅ Email verified successfully for user:', record.user.email);
+    return user;
 };
 
-const login = async (email, password, twoFactorToken = null) => {
-  const TwoFactorService = require('./twoFactorService');
-  
-  // Normalize email to lowercase for case-insensitive lookup
-  const normalizedEmail = email.toLowerCase().trim();
-  
-  console.log('🔐 Login attempt for email:', normalizedEmail);
-  
-  const user = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
-    include: {
-      student: { include: { department: true } },
-      faculty: { include: { department: true } }
+const login = async(email, password, twoFactorToken = null) => {
+    if (!email || !password) {
+        throw new Error('Email and password are required');
     }
-  });
 
-  if (!user) {
-    console.log('❌ User not found for email:', normalizedEmail);
-    const err = new Error('Geçersiz e-posta veya şifre');
-    err.code = 'UNAUTHORIZED';
-    err.statusCode = 401;
-    throw err;
-  }
+    const user = await User.findOne({
+        where: { email },
+        include: [
+            { model: Student, as: 'student', include: [{ model: Department, as: 'department' }] },
+            { model: Faculty, as: 'faculty', include: [{ model: Department, as: 'department' }] }
+        ]
+    });
 
-  console.log('✅ User found, comparing password...');
-  const isValid = await bcrypt.compare(password, user.passwordHash);
-  if (!isValid) {
-    console.log('❌ Password mismatch for user:', normalizedEmail);
-    const err = new Error('Geçersiz e-posta veya şifre');
-    err.code = 'UNAUTHORIZED';
-    err.statusCode = 401;
-    throw err;
-  }
-  
-  console.log('✅ Password verified for user:', normalizedEmail);
-  
-  // Check if email verification is required and user is not verified
-  const requireEmailVerification = process.env.REQUIRE_EMAIL_VERIFICATION !== 'false';
-  if (requireEmailVerification && !user.isVerified) {
-    console.log('❌ User email not verified:', normalizedEmail);
-    const err = new Error('E-posta adresinizi doğrulamanız gerekiyor. Lütfen e-posta kutunuzu kontrol edin.');
-    err.code = 'UNAUTHORIZED';
-    err.statusCode = 401;
-    throw err;
-  }
-  
-  // Check if 2FA is enabled (only if field exists)
-  if (user.twoFactorEnabled === true) {
-    if (!twoFactorToken) {
-      // Generate temporary token for 2FA verification
-      const tempToken = generateAccessToken({ id: user.id, email: user.email, role: user.role }, '5m');
-      return {
-        requires2FA: true,
-        userId: user.id,
-        tempToken
-      };
+    if (!user) {
+        throw new Error('Invalid email or password');
     }
-    
-    // Verify 2FA token
-    const secret = await TwoFactorService.getUserSecret(user.id);
-    if (!secret) {
-      const err = new Error('2FA secret not found');
-      err.code = 'UNAUTHORIZED';
-      err.statusCode = 401;
-      throw err;
-    }
-    
-    const isValid2FA = TwoFactorService.verifyToken({ base32: secret }, twoFactorToken);
-    if (!isValid2FA) {
-      const err = new Error('Invalid 2FA token');
-      err.code = 'UNAUTHORIZED';
-      err.statusCode = 401;
-      throw err;
-    }
-  }
-  
-  const payload = { id: user.id, email: user.email, role: user.role };
-  const accessToken = generateAccessToken(payload);
-  const refreshToken = generateRefreshToken(payload);
 
-  await prisma.refreshToken.create({
-    data: {
-      userId: user.id,
-      token: refreshToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    if (!user.is_verified) {
+        const err = new Error('Please verify your email before logging in');
+        err.statusCode = 401;
+        throw err;
     }
-  });
 
-  return {
-    user: sanitizeUser(user),
-    accessToken,
-    refreshToken
-  };
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+        const err = new Error('Invalid email or password');
+        err.statusCode = 401;
+        throw err;
+    }
+
+    // Check if 2FA is enabled
+    if (user.two_factor_enabled) {
+        // If 2FA is enabled but no token provided, return requires2FA
+        if (!twoFactorToken) {
+            // Generate temporary token for 2FA verification (short-lived)
+            const jwt = require('jsonwebtoken');
+            const tempToken = jwt.sign(
+                { id: user.id, email: user.email, role: user.role },
+                process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+                { expiresIn: '15m' }
+            );
+            return {
+                requires2FA: true,
+                userId: user.id,
+                tempToken: tempToken
+            };
+        }
+
+        // Verify 2FA token
+        if (!user.two_factor_secret) {
+            const err = new Error('2FA is enabled but secret is missing');
+            err.statusCode = 500;
+            throw err;
+        }
+
+        const isValid = TwoFactorService.verifyToken(
+            { base32: user.two_factor_secret },
+            twoFactorToken
+        );
+
+        if (!isValid) {
+            const err = new Error('Invalid 2FA token');
+            err.statusCode = 401;
+            throw err;
+        }
+    }
+
+    // Generate tokens
+    const payload = {
+        id: user.id,
+        email: user.email,
+        role: user.role
+    };
+
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    // Save refresh token
+    user.refresh_token = refreshToken;
+    await user.save();
+
+    // Return user without sensitive data
+    const userResponse = user.toJSON();
+    delete userResponse.password_hash;
+    delete userResponse.verification_token;
+    delete userResponse.reset_password_token;
+    delete userResponse.two_factor_secret;
+
+    return {
+        user: userResponse,
+        accessToken,
+        refreshToken
+    };
 };
 
-const refreshToken = async (token) => {
-  const decoded = verifyRefreshToken(token);
-  const stored = await prisma.refreshToken.findUnique({ where: { token } });
+const refreshToken = async(token) => {
+    const { verifyRefreshToken, generateAccessToken } = require('../utils/jwt');
 
-  if (!stored || stored.expiresAt < new Date()) {
-    const err = new Error('Geçersiz refresh token');
-    err.code = 'UNAUTHORIZED';
-    err.statusCode = 401;
-    throw err;
-  }
+    const decoded = verifyRefreshToken(token);
 
-  const payload = { id: decoded.id, email: decoded.email, role: decoded.role };
-  return { accessToken: generateAccessToken(payload) };
-};
-
-const logout = async (userId) => {
-  await prisma.refreshToken.deleteMany({ where: { userId } });
-};
-
-const forgotPassword = async (email) => {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) return;
-
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-  await prisma.passwordResetToken.create({
-    data: {
-      userId: user.id,
-      token,
-      expiresAt
+    const user = await User.findOne({ where: { id: decoded.id } });
+    if (!user || user.refresh_token !== token) {
+        throw new Error('Invalid refresh token');
     }
-  });
 
-  await sendPasswordResetEmail(email, token);
+    const payload = {
+        id: user.id,
+        email: user.email,
+        role: user.role
+    };
+
+    const newAccessToken = generateAccessToken(payload);
+    return { accessToken: newAccessToken };
 };
 
-const resetPassword = async (token, password, confirmPassword) => {
-  if (password !== confirmPassword) {
-    const err = new Error('Şifreler eşleşmiyor');
-    err.code = 'VALIDATION_ERROR';
-    err.statusCode = 400;
-    throw err;
-  }
+const logout = async(userId) => {
+    const user = await User.findByPk(userId);
+    if (user) {
+        user.refresh_token = null;
+        await user.save();
+    }
+};
 
-  if (!validatePassword(password)) {
-    const err = new Error('Şifre kriterlerini sağlamıyor');
-    err.code = 'VALIDATION_ERROR';
-    err.statusCode = 400;
-    throw err;
-  }
+const forgotPassword = async(email) => {
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+        // Don't reveal if user exists
+        return true;
+    }
 
-  const record = await prisma.passwordResetToken.findUnique({
-    where: { token },
-    include: { user: true }
-  });
+    const reset_token = crypto.randomBytes(32).toString('hex');
+    const reset_token_expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-  if (!record || record.expiresAt < new Date()) {
-    const err = new Error('Geçersiz veya süresi dolmuş sıfırlama tokenı');
-    err.code = 'UNAUTHORIZED';
-    err.statusCode = 401;
-    throw err;
-  }
+    user.reset_password_token = reset_token;
+    user.reset_password_expires = reset_token_expires;
+    await user.save();
 
-  const hashed = await bcrypt.hash(password, 10);
+    try {
+        await sendPasswordResetEmail(email, reset_token);
+    } catch (error) {
+        console.error('Failed to send password reset email:', error);
+        throw new Error('Failed to send password reset email');
+    }
 
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: record.userId },
-      data: { passwordHash: hashed }
-    }),
-    prisma.passwordResetToken.delete({ where: { id: record.id } }),
-    prisma.refreshToken.deleteMany({ where: { userId: record.userId } })
-  ]);
+    return true;
+};
+
+const resetPassword = async(token, newPassword) => {
+    if (!validatePassword(newPassword)) {
+        throw new Error('Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number');
+    }
+
+    const user = await User.findOne({
+        where: {
+            reset_password_token: token
+        }
+    });
+
+    if (!user) {
+        throw new Error('Invalid or expired reset token');
+    }
+
+    if (user.reset_password_expires < new Date()) {
+        throw new Error('Reset token has expired');
+    }
+
+    const password_hash = await bcrypt.hash(newPassword, 10);
+    user.password_hash = password_hash;
+    user.reset_password_token = null;
+    user.reset_password_expires = null;
+    user.refresh_token = null; // Invalidate all sessions
+    await user.save();
+
+    return true;
 };
 
 module.exports = {
-  register,
-  verifyEmail,
-  login,
-  refreshToken,
-  logout,
-  forgotPassword,
-  resetPassword
+    register,
+    verifyEmail,
+    login,
+    refreshToken,
+    logout,
+    forgotPassword,
+    resetPassword
 };

@@ -22,4 +22,7 @@ router.post('/attendance/give/:sessionId', authenticate, attendanceController.gi
 router.post('/enroll', authenticate, studentController.enrollCourse);
 router.post('/drop', authenticate, studentController.dropCourse);
 
+// Transcript download
+router.get('/transcript', authenticate, studentController.getTranscript);
+
 module.exports = router;

@@ -92,22 +92,59 @@ const enrollmentService = require('../services/enrollmentService');
 
 exports.enrollCourse = async (req, res) => {
   try {
-    const studentId = req.user.id;
+    const userId = req.user.id;
     const { sectionId } = req.body;
 
-    // Student ID'sini veritabanındaki student tablosundan bulmamız lazım
-    // req.user.id Auth tablosundaki ID olabilir (User ID), Student tablosunda ayrı bir ID olabilir.
-    // Mevcut kodda (yukarıda getGrades'te) şöyle yapılmış:
-    const student = await prisma.student.findUnique({ where: { userId: studentId } });
+    const student = await prisma.student.findUnique({ where: { userId: userId } });
     if (!student) return res.status(404).json({ error: 'Öğrenci kaydı bulunamadı' });
 
-    const result = await enrollmentService.enrollStudent({
-      studentId: student.id,
-      sectionId
+    // Check if section exists and has instructor
+    const section = await prisma.course_sections.findUnique({
+      where: { id: sectionId },
+      include: { courses: true }
     });
 
-    res.status(201).json({ success: true, message: 'Derse kayıt başarılı', data: result });
+    if (!section) {
+      return res.status(404).json({ error: 'Ders şubesi bulunamadı' });
+    }
+
+    if (!section.instructor_id) {
+      return res.status(400).json({ error: 'Bu derse henüz akademisyen atanmamış' });
+    }
+
+    // Check if student already has an enrollment (active or pending) for this section
+    const existingEnrollment = await prisma.enrollments.findFirst({
+      where: {
+        student_id: student.id,
+        section_id: sectionId,
+        status: { in: ['active', 'pending'] }
+      }
+    });
+
+    if (existingEnrollment) {
+      if (existingEnrollment.status === 'pending') {
+        return res.status(400).json({ error: 'Bu ders için zaten bekleyen bir kayıt isteğiniz var' });
+      } else {
+        return res.status(400).json({ error: 'Bu derse zaten kayıtlısınız' });
+      }
+    }
+
+    // Create enrollment request with pending status
+    const enrollment = await prisma.enrollments.create({
+      data: {
+        student_id: student.id,
+        section_id: sectionId,
+        status: 'pending' // Kayıt isteği - akademisyen onaylayacak
+      }
+    });
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Kayıt isteği başarıyla gönderildi. Akademisyen onayı bekleniyor.', 
+      data: enrollment 
+    });
   } catch (err) {
+    console.error('enrollCourse error:', err);
     res.status(400).json({ success: false, error: err.message });
   }
 };
@@ -160,30 +197,62 @@ exports.getAvailableCourses = async (req, res) => {
     const student = await prisma.student.findUnique({ where: { userId: userId } });
     if (!student) return res.status(404).json({ error: 'Öğrenci kaydı bulunamadı' });
 
-    // Get all active course sections
+    // Get only sections that have an instructor assigned (instructor_id is not null)
     const sections = await prisma.course_sections.findMany({
       where: {
         deleted_at: null,
+        instructor_id: { not: null }, // Sadece akademisyene atanan dersler
         courses: {
           is_active: true,
           deleted_at: null
         }
       },
       include: {
-        courses: true
+        courses: true,
+        // Get instructor info
+        enrollments: {
+          where: {
+            student_id: student.id,
+            status: { in: ['active', 'pending'] }
+          },
+          select: {
+            id: true,
+            status: true
+          }
+        }
       }
     });
 
-    // Filter out sections student is already enrolled in
-    const enrolledSections = await prisma.enrollments.findMany({
-      where: { student_id: student.id, status: 'active' },
-      select: { section_id: true }
-    });
+    // Get instructor names
+    const sectionsWithInstructors = await Promise.all(sections.map(async (section) => {
+      let instructorName = null;
+      if (section.instructor_id) {
+        const faculty = await prisma.faculty.findUnique({
+          where: { id: section.instructor_id },
+          include: {
+            user: {
+              select: {
+                fullName: true
+              }
+            }
+          }
+        });
+        if (faculty && faculty.user) {
+          instructorName = faculty.user.fullName;
+        }
+      }
+      return {
+        ...section,
+        instructorName
+      };
+    }));
 
-    const enrolledSectionIds = enrolledSections.map(e => e.section_id);
-
-    const availableSections = sections
-      .filter(section => !enrolledSectionIds.includes(section.id))
+    // Filter out sections student is already enrolled in or has pending request
+    const availableSections = sectionsWithInstructors
+      .filter(section => {
+        // Eğer zaten active veya pending enrollment varsa gösterme
+        return section.enrollments.length === 0;
+      })
       .map(section => ({
         sectionId: section.id,
         courseId: section.course_id,
@@ -195,11 +264,12 @@ exports.getAvailableCourses = async (req, res) => {
         credits: section.courses.credits,
         capacity: section.capacity,
         enrolledCount: section.enrolled_count,
-        instructorName: null // We don't have instructor relation in schema
+        instructorName: section.instructorName || 'Belirtilmemiş'
       }));
 
     res.json(availableSections);
   } catch (err) {
+    console.error('getAvailableCourses error:', err);
     res.status(500).json({ error: 'Dersler yüklenemedi', details: err.message });
   }
 };
@@ -241,6 +311,121 @@ exports.getMyAttendance = async (req, res) => {
   } catch (err) {
     console.error('getMyAttendance error:', err);
     res.status(500).json({ error: 'Yoklama geçmişi yüklenemedi', details: err.message });
+  }
+};
+
+exports.getTranscript = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const student = await prisma.student.findUnique({
+      where: { userId: userId },
+      include: {
+        user: {
+          select: {
+            fullName: true,
+            email: true
+          }
+        },
+        department: {
+          select: {
+            name: true,
+            code: true
+          }
+        }
+      }
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Öğrenci kaydı bulunamadı' });
+    }
+
+    const enrollments = await prisma.enrollments.findMany({
+      where: {
+        student_id: student.id,
+        status: 'active',
+        letter_grade: { not: null }
+      },
+      include: {
+        section: {
+          include: {
+            courses: true
+          }
+        }
+      },
+      orderBy: [
+        { section: { year: 'desc' } },
+        { section: { semester: 'asc' } }
+      ]
+    });
+
+    // Create Excel file
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Transkript');
+
+    // Header styling
+    worksheet.columns = [
+      { header: 'Ders Kodu', key: 'courseCode', width: 15 },
+      { header: 'Ders Adı', key: 'courseName', width: 40 },
+      { header: 'Kredi', key: 'credits', width: 10 },
+      { header: 'Harf Notu', key: 'letterGrade', width: 12 },
+      { header: 'Puan', key: 'score', width: 10 },
+      { header: 'Dönem', key: 'semester', width: 15 }
+    ];
+
+    // Style header
+    worksheet.getRow(1).font = { bold: true, size: 12 };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4472C4' }
+    };
+    worksheet.getRow(1).font = { ...worksheet.getRow(1).font, color: { argb: 'FFFFFFFF' } };
+    worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Add student info
+    worksheet.insertRow(1, ['Öğrenci Adı:', student.user.fullName || '']);
+    worksheet.insertRow(2, ['Öğrenci Numarası:', student.studentNumber || '']);
+    worksheet.insertRow(3, ['Bölüm:', student.department?.name || '']);
+    worksheet.insertRow(4, ['GNO:', student.gpa ? parseFloat(student.gpa).toFixed(2) : '-']);
+    worksheet.insertRow(5, ['AGNO:', student.cgpa ? parseFloat(student.cgpa).toFixed(2) : '-']);
+    worksheet.insertRow(6, []); // Empty row
+
+    // Add grades
+    enrollments.forEach((enrollment) => {
+      worksheet.addRow({
+        courseCode: enrollment.section.courses.code,
+        courseName: enrollment.section.courses.name,
+        credits: enrollment.section.courses.credits,
+        letterGrade: enrollment.letter_grade,
+        score: enrollment.final_grade || '-',
+        semester: `${enrollment.section.semester} ${enrollment.section.year}`
+      });
+    });
+
+    // Style data rows
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 6) {
+        row.alignment = { vertical: 'middle' };
+        if (rowNumber % 2 === 0) {
+          row.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF2F2F2' }
+          };
+        }
+      }
+    });
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="transkript_${student.studentNumber}.xlsx"`);
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('getTranscript error:', err);
+    res.status(500).json({ error: 'Transkript oluşturulamadı', details: err.message });
   }
 };
 

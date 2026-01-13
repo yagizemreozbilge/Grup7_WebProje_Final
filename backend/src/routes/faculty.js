@@ -11,4 +11,8 @@ router.get('/sections', authenticate, facultyController.getMySections);
 router.post('/grades', authenticate, facultyController.enterGrade);
 router.get('/grades/:sectionId', authenticate, facultyController.getSectionGrades);
 
+// Enrollment requests
+router.get('/enrollment-requests', authenticate, facultyController.getEnrollmentRequests);
+router.post('/enrollment-requests/:enrollmentId/:action', authenticate, facultyController.handleEnrollmentRequest);
+
 module.exports = router;

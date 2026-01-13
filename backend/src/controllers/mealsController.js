@@ -1,501 +1,188 @@
 const prisma = require('../prisma');
-const QRCodeService = require('../services/QRCodeService');
-const PaymentService = require('../services/PaymentService');
-const NotificationService = require('../services/NotificationService');
 
-const mealsController = {
-  // Get menus with optional date filter
-  async getMenus(req, res, next) {
-    try {
-      const { date, cafeteria_id, meal_type } = req.query;
-      
-      const where = {
-        isPublished: true
-      };
-
-      if (date) {
-        // Parse date and create range for the entire day
-        const dateObj = new Date(date);
-        dateObj.setHours(0, 0, 0, 0);
-        const nextDay = new Date(dateObj);
-        nextDay.setDate(nextDay.getDate() + 1);
-        
-        where.date = {
-          gte: dateObj,
-          lt: nextDay
-        };
+// Get all menus
+const getMenus = async (req, res) => {
+  try {
+    const menus = await prisma.mealMenu.findMany({
+      include: {
+        cafeteria: true
+      },
+      orderBy: {
+        date: 'desc'
       }
-
-      if (cafeteria_id) {
-        where.cafeteriaId = cafeteria_id;
-      }
-
-      if (meal_type) {
-        where.mealType = meal_type;
-      }
-
-      const menus = await prisma.mealMenu.findMany({
-        where,
-        include: {
-          cafeteria: {
-            select: {
-              id: true,
-              name: true,
-              location: true
-            }
-          }
-        },
-        orderBy: [
-          { date: 'asc' },
-          { mealType: 'asc' }
-        ]
-      });
-
-      res.status(200).json({ success: true, data: menus });
-    } catch (error) {
-      console.error('Error fetching menus:', error);
-      next(error);
-    }
-  },
-
-  // Get menu by ID
-  async getMenuById(req, res, next) {
-    try {
-      const { id } = req.params;
-
-      const menu = await prisma.mealMenu.findUnique({
-        where: { id },
-        include: {
-          cafeteria: true
-        }
-      });
-
-      if (!menu) {
-        return res.status(404).json({ success: false, error: 'Menu not found' });
-      }
-
-      res.status(200).json({ success: true, data: menu });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  // Create menu (admin only)
-  async createMenu(req, res, next) {
-    try {
-      const { cafeteria_id, date, meal_type, items_json, nutrition_json, is_published } = req.body;
-
-      const menu = await prisma.mealMenu.create({
-        data: {
-          cafeteriaId: cafeteria_id,
-          date: new Date(date),
-          mealType: meal_type,
-          itemsJson: items_json,
-          nutritionJson: nutrition_json,
-          isPublished: is_published || false
-        },
-        include: {
-          cafeteria: true
-        }
-      });
-
-      res.status(201).json({ success: true, data: menu });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  // Update menu (admin only)
-  async updateMenu(req, res, next) {
-    try {
-      const { id } = req.params;
-      const { date, meal_type, items_json, nutrition_json, is_published } = req.body;
-
-      const menu = await prisma.mealMenu.update({
-        where: { id },
-        data: {
-          ...(date && { date: new Date(date) }),
-          ...(meal_type && { mealType: meal_type }),
-          ...(items_json && { itemsJson: items_json }),
-          ...(nutrition_json && { nutritionJson: nutrition_json }),
-          ...(is_published !== undefined && { isPublished: is_published })
-        },
-        include: {
-          cafeteria: true
-        }
-      });
-
-      res.status(200).json({ success: true, data: menu });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  // Delete menu (admin only)
-  async deleteMenu(req, res, next) {
-    try {
-      const { id } = req.params;
-
-      await prisma.mealMenu.delete({
-        where: { id }
-      });
-
-      res.status(200).json({ success: true, message: 'Menu deleted successfully' });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  // Create reservation
-  async createReservation(req, res, next) {
-    try {
-      const userId = req.user.id;
-      const { menu_id, cafeteria_id, meal_type, date, amount } = req.body;
-
-      // Get user and check if student (for scholarship check)
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        include: {
-          student: true
-        }
-      });
-
-      if (!user) {
-        return res.status(404).json({ success: false, error: 'User not found' });
-      }
-
-      // Get menu
-      const menu = await prisma.mealMenu.findUnique({
-        where: { id: menu_id }
-      });
-
-      if (!menu) {
-        return res.status(404).json({ success: false, error: 'Menu not found' });
-      }
-
-      const isStudent = user.role === 'student';
-      const isScholarship = isStudent && user.student; // TODO: Add scholarship field to student model
-
-      // Check daily quota for scholarship students (max 2 meals/day)
-      if (isScholarship) {
-        const today = new Date(date);
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        const todayReservations = await prisma.mealReservation.count({
-          where: {
-            userId: userId,
-            date: {
-              gte: today,
-              lt: tomorrow
-            },
-            status: { in: ['reserved', 'used'] }
-          }
-        });
-
-        if (todayReservations >= 2) {
-          return res.status(400).json({
-            success: false,
-            error: 'Daily quota exceeded. Maximum 2 meals per day for scholarship students.'
-          });
-        }
-      }
-
-      // If paid, check wallet balance
-      if (!isScholarship && amount > 0) {
-        const wallet = await prisma.wallet.findUnique({
-          where: { userId: userId }
-        });
-
-        if (!wallet) {
-          return res.status(400).json({ success: false, error: 'Wallet not found' });
-        }
-
-        if (wallet.balance < amount) {
-          return res.status(400).json({
-            success: false,
-            error: 'Insufficient balance'
-          });
-        }
-      }
-
-      // Generate QR code
-      const qrCode = QRCodeService.generateMealQRCode();
-
-      // Create reservation
-      const reservation = await prisma.mealReservation.create({
-        data: {
-          userId: userId,
-          menuId: menu_id,
-          cafeteriaId: cafeteria_id,
-          mealType: meal_type,
-          date: new Date(date),
-          amount: isScholarship ? 0 : amount,
-          qrCode: qrCode,
-          status: 'reserved'
-        },
-        include: {
-          menu: {
-            include: {
-              cafeteria: true
-            }
-          },
-          user: {
-            select: {
-              id: true,
-              email: true,
-              fullName: true
-            }
-          }
-        }
-      });
-
-      // If paid, create pending transaction (will deduct on use)
-      if (!isScholarship && amount > 0) {
-        const wallet = await prisma.wallet.findUnique({
-          where: { userId: userId }
-        });
-
-        await prisma.transaction.create({
-          data: {
-            walletId: wallet.id,
-            type: 'debit',
-            amount,
-            balanceAfter: wallet.balance, // Will update when used
-            referenceType: 'meal_reservation',
-            referenceId: reservation.id,
-            description: `Meal reservation - ${meal_type}`
-          }
-        });
-      }
-
-      // Send confirmation notification
-      await NotificationService.sendMealReservationConfirmation(user.email, reservation);
-
-      res.status(201).json({ success: true, data: reservation });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  // Cancel reservation
-  async cancelReservation(req, res, next) {
-    try {
-      const userId = req.user.id;
-      const { id } = req.params;
-
-      const reservation = await prisma.mealReservation.findUnique({
-        where: { id },
-        include: {
-          menu: true,
-          user: true
-        }
-      });
-
-      if (!reservation) {
-        return res.status(404).json({ success: false, error: 'Reservation not found' });
-      }
-
-      if (reservation.userId !== userId) {
-        return res.status(403).json({ success: false, error: 'Unauthorized' });
-      }
-
-      if (reservation.status !== 'reserved') {
-        return res.status(400).json({
-          success: false,
-          error: 'Only reserved reservations can be cancelled'
-        });
-      }
-
-      // Check if >= 2 hours before meal time
-      const mealDate = new Date(reservation.date);
-      const mealTime = reservation.mealType === 'lunch' ? 12 : reservation.mealType === 'dinner' ? 18 : 8;
-      mealDate.setHours(mealTime, 0, 0, 0);
-
-      const now = new Date();
-      const hoursUntilMeal = (mealDate - now) / (1000 * 60 * 60);
-
-      if (hoursUntilMeal < 2) {
-        return res.status(400).json({
-          success: false,
-          error: 'Reservations can only be cancelled at least 2 hours before meal time'
-        });
-      }
-
-      // If paid, refund to wallet
-      if (reservation.amount > 0) {
-        const wallet = await prisma.wallet.findUnique({
-          where: { userId: userId }
-        });
-
-        if (wallet) {
-          await PaymentService.refundToWallet(
-            wallet.id,
-            reservation.amount,
-            'refund',
-            reservation.id,
-            `Refund for cancelled meal reservation`
-          );
-        }
-      }
-
-      // Update reservation status
-      await prisma.mealReservation.update({
-        where: { id },
-        data: {
-          status: 'cancelled'
-        }
-      });
-
-      // Send notification
-      await NotificationService.sendEmail(
-        reservation.user.email,
-        'Yemek Rezervasyonu İptal Edildi',
-        `Yemek rezervasyonunuz iptal edilmiştir.${reservation.amount > 0 ? ' Ücret cüzdanınıza iade edilmiştir.' : ''}`
-      );
-
-      res.status(200).json({ success: true, message: 'Reservation cancelled successfully' });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  // Get my reservations
-  async getMyReservations(req, res, next) {
-    try {
-      const userId = req.user.id;
-      const { status, date } = req.query;
-
-      const where = { userId: userId };
-
-      if (status) {
-        where.status = status;
-      }
-
-      if (date) {
-        where.date = new Date(date);
-      }
-
-      const reservations = await prisma.mealReservation.findMany({
-        where,
-        include: {
-          menu: {
-            include: {
-              cafeteria: true
-            }
-          }
-        },
-        orderBy: [
-          { date: 'desc' },
-          { createdAt: 'desc' }
-        ]
-      });
-
-      res.status(200).json({ success: true, data: reservations });
-    } catch (error) {
-      next(error);
-    }
-  },
-
-  // Use reservation (cafeteria staff)
-  async useReservation(req, res, next) {
-    try {
-      const { id } = req.params;
-      const { qr_code } = req.body;
-
-      const reservation = await prisma.mealReservation.findUnique({
-        where: { id },
-        include: {
-          menu: true,
-          user: {
-            include: {
-              wallet: true
-            }
-          }
-        }
-      });
-
-      if (!reservation) {
-        return res.status(404).json({ success: false, error: 'Reservation not found' });
-      }
-
-      // Validate QR code
-      if (reservation.qrCode !== qr_code) {
-        return res.status(400).json({ success: false, error: 'Invalid QR code' });
-      }
-
-      // Check if today's date matches
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const reservationDate = new Date(reservation.date);
-      reservationDate.setHours(0, 0, 0, 0);
-
-      if (reservationDate.getTime() !== today.getTime()) {
-        return res.status(400).json({
-          success: false,
-          error: 'QR code is not valid for today'
-        });
-      }
-
-      // Check if already used
-      if (reservation.status === 'used') {
-        return res.status(400).json({
-          success: false,
-          error: 'Reservation already used'
-        });
-      }
-
-      // Mark as used
-      const updatedReservation = await prisma.mealReservation.update({
-        where: { id },
-        data: {
-          status: 'used',
-          usedAt: new Date()
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              fullName: true
-            }
-          },
-          menu: {
-            include: {
-              cafeteria: true
-            }
-          }
-        }
-      });
-
-      // If paid, complete transaction (deduct from wallet)
-      if (reservation.amount > 0 && reservation.user.wallet) {
-        await PaymentService.deductFromWallet(
-          reservation.user.wallet.id,
-          reservation.amount,
-          'meal_reservation',
-          reservation.id,
-          `Meal reservation - ${reservation.mealType}`
-        );
-      }
-
-      res.status(200).json({
-        success: true,
-        data: updatedReservation,
-        message: 'Reservation used successfully'
-      });
-    } catch (error) {
-      next(error);
-    }
+    });
+    res.json({ success: true, data: menus });
+  } catch (error) {
+    console.error('Error getting menus:', error);
+    res.status(500).json({ success: false, error: 'Failed to get menus' });
   }
 };
 
-module.exports = mealsController;
+// Get menu by ID
+const getMenuById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const menu = await prisma.mealMenu.findUnique({
+      where: { id },
+      include: {
+        cafeteria: true
+      }
+    });
+    if (!menu) {
+      return res.status(404).json({ success: false, error: 'Menu not found' });
+    }
+    res.json({ success: true, data: menu });
+  } catch (error) {
+    console.error('Error getting menu:', error);
+    res.status(500).json({ success: false, error: 'Failed to get menu' });
+  }
+};
 
+// Create menu
+const createMenu = async (req, res) => {
+  try {
+    const { cafeteriaId, date, mealType, itemsJson, nutritionJson, isPublished } = req.body;
+    const menu = await prisma.mealMenu.create({
+      data: {
+        cafeteriaId,
+        date: new Date(date),
+        mealType,
+        itemsJson,
+        nutritionJson,
+        isPublished: isPublished || false
+      }
+    });
+    res.status(201).json({ success: true, data: menu });
+  } catch (error) {
+    console.error('Error creating menu:', error);
+    res.status(500).json({ success: false, error: 'Failed to create menu' });
+  }
+};
 
+// Update menu
+const updateMenu = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, mealType, itemsJson, nutritionJson, isPublished } = req.body;
+    const menu = await prisma.mealMenu.update({
+      where: { id },
+      data: {
+        ...(date && { date: new Date(date) }),
+        ...(mealType && { mealType }),
+        ...(itemsJson && { itemsJson }),
+        ...(nutritionJson && { nutritionJson }),
+        ...(isPublished !== undefined && { isPublished })
+      }
+    });
+    res.json({ success: true, data: menu });
+  } catch (error) {
+    console.error('Error updating menu:', error);
+    res.status(500).json({ success: false, error: 'Failed to update menu' });
+  }
+};
 
+// Delete menu
+const deleteMenu = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.mealMenu.delete({
+      where: { id }
+    });
+    res.json({ success: true, message: 'Menu deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting menu:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete menu' });
+  }
+};
 
+// Create reservation
+const createReservation = async (req, res) => {
+  try {
+    const { menuId, quantity } = req.body;
+    const userId = req.user.id;
+    
+    const reservation = await prisma.mealReservation.create({
+      data: {
+        userId,
+        menuId,
+        quantity: quantity || 1
+      }
+    });
+    res.status(201).json({ success: true, data: reservation });
+  } catch (error) {
+    console.error('Error creating reservation:', error);
+    res.status(500).json({ success: false, error: 'Failed to create reservation' });
+  }
+};
 
+// Cancel reservation
+const cancelReservation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    
+    const reservation = await prisma.mealReservation.delete({
+      where: {
+        id,
+        userId // Ensure user can only cancel their own reservations
+      }
+    });
+    res.json({ success: true, message: 'Reservation cancelled successfully' });
+  } catch (error) {
+    console.error('Error cancelling reservation:', error);
+    res.status(500).json({ success: false, error: 'Failed to cancel reservation' });
+  }
+};
 
+// Get my reservations
+const getMyReservations = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const reservations = await prisma.mealReservation.findMany({
+      where: { userId },
+      include: {
+        menu: {
+          include: {
+            cafeteria: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+    res.json({ success: true, data: reservations });
+  } catch (error) {
+    console.error('Error getting reservations:', error);
+    res.status(500).json({ success: false, error: 'Failed to get reservations' });
+  }
+};
 
+// Use reservation
+const useReservation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reservation = await prisma.mealReservation.update({
+      where: { id },
+      data: {
+        usedAt: new Date()
+      }
+    });
+    res.json({ success: true, data: reservation });
+  } catch (error) {
+    console.error('Error using reservation:', error);
+    res.status(500).json({ success: false, error: 'Failed to use reservation' });
+  }
+};
+
+module.exports = {
+  getMenus,
+  getMenuById,
+  createMenu,
+  updateMenu,
+  deleteMenu,
+  createReservation,
+  cancelReservation,
+  getMyReservations,
+  useReservation
+};

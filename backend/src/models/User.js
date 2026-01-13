@@ -77,6 +77,15 @@ module.exports = (sequelize, DataTypes) => {
         refresh_token: {
             type: DataTypes.TEXT,
             allowNull: true
+        },
+        two_factor_secret: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        two_factor_enabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: true
         }
     }, {
         sequelize,

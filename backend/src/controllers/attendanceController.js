@@ -1,6 +1,6 @@
 // src/controllers/attendanceController.js
 const attendanceService = require('../services/attendanceService');
-const ExcelService = require('../services/excelService');
+const ExcelJS = require('exceljs');
 const prisma = require('../prisma');
 
 exports.createSession = async (req, res) => {
@@ -10,15 +10,49 @@ exports.createSession = async (req, res) => {
     if (!section_id || !date || !start_time || !end_time) {
       return res.status(400).json({ error: 'section_id, date, start_time ve end_time gereklidir.' });
     }
+
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Section'ı kontrol et ve akademisyenin bu derse atanmış olduğunu doğrula
+    const section = await prisma.course_sections.findUnique({
+      where: { id: section_id },
+      include: { courses: true }
+    });
+
+    if (!section) {
+      return res.status(404).json({ error: 'Ders şubesi bulunamadı' });
+    }
+
+    // Admin tüm derslerde yoklama başlatabilir, akademisyen sadece kendi derslerinde
+    if (userRole !== 'admin') {
+      if (userRole !== 'faculty') {
+        return res.status(403).json({ error: 'Bu işlem için akademisyen yetkisi gereklidir' });
+      }
+
+      // Akademisyenin bu derse atanmış olduğunu kontrol et
+      const faculty = await prisma.faculty.findFirst({
+        where: { userId: userId }
+      });
+
+      if (!faculty) {
+        return res.status(404).json({ error: 'Öğretim görevlisi profili bulunamadı' });
+      }
+
+      if (section.instructor_id !== faculty.id) {
+        return res.status(403).json({ error: 'Bu derse atanmış değilsiniz. Sadece size atanan derslerde yoklama başlatabilirsiniz.' });
+      }
+    }
+
     // Yoklama oturumu oluştur
     const session = await attendanceService.createSession({
       section_id,
-      instructor_id: req.user?.id,
+      instructor_id: userRole === 'admin' ? null : (await prisma.faculty.findFirst({ where: { userId: userId } }))?.id,
       date,
       start_time,
       end_time,
-      latitude,
-      longitude
+      latitude: latitude || 0,
+      longitude: longitude || 0
     });
     res.status(201).json(session);
   } catch (err) {
@@ -437,43 +471,102 @@ exports.getSessionAttendance = async (req, res) => {
 exports.exportReportExcel = async (req, res) => {
   try {
     const { sectionId } = req.params;
-    
-    // Get report data
     const report = await attendanceService.getReport(sectionId);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Campus Information System';
+    workbook.created = new Date();
     
-    // Get section info for title
-    const section = await prisma.course_sections.findUnique({
-      where: { id: sectionId },
-      include: {
-        courses: {
-          select: {
-            code: true,
-            name: true
-          }
-        }
-      }
+    const sheet = workbook.addWorksheet('Yoklama Raporu');
+
+    // Add title row
+    const titleRow = sheet.addRow(['Yoklama Raporu']);
+    titleRow.font = { size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+    titleRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF0F4C81' }
+    };
+    titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    titleRow.height = 30;
+    sheet.mergeCells(1, 1, 1, 5);
+
+    // Add date row
+    const dateRow = sheet.addRow([`Oluşturulma Tarihi: ${new Date().toLocaleString('tr-TR')}`]);
+    dateRow.font = { size: 10, italic: true };
+    dateRow.alignment = { horizontal: 'right' };
+    sheet.mergeCells(2, 1, 2, 5);
+
+    // Add empty row
+    sheet.addRow([]);
+
+    // Add header row
+    const headers = ['Öğrenci No', 'Ad Soyad', 'Toplam Devam', 'Toplam Yoklama', 'Devamsızlık (%)'];
+    const headerRow = sheet.addRow(headers);
+    headerRow.font = { size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1E3A8A' }
+    };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+    headerRow.height = 25;
+    headerRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+      };
     });
 
-    const sectionInfo = section ? {
-      courseCode: section.courses.code,
-      courseName: section.courses.name,
-      sectionNumber: section.section_number
-    } : null;
+    // Add data rows
+    report.forEach((row, index) => {
+      const dataRow = sheet.addRow([
+        row.studentNumber,
+        row.fullName,
+        row.presentCount,
+        row.totalCount,
+        row.absencePercent
+      ]);
+      dataRow.alignment = { vertical: 'middle', horizontal: 'left' };
+      dataRow.height = 20;
+      
+      // Alternate row colors
+      if (index % 2 === 0) {
+        dataRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF8FAFC' }
+        };
+      }
+      
+      dataRow.eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+        };
+      });
+    });
 
-    // Create modern Excel report
-    const workbook = await ExcelService.createAttendanceReport(report, sectionInfo);
+    // Set column widths
+    sheet.getColumn(1).width = 15;
+    sheet.getColumn(2).width = 25;
+    sheet.getColumn(3).width = 15;
+    sheet.getColumn(4).width = 15;
+    sheet.getColumn(5).width = 18;
+
+    // Freeze header row
+    sheet.views = [
+      { state: 'frozen', ySplit: 4 }
+    ];
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="yoklama_raporu_${sectionId}.xlsx"`);
-    
+    res.setHeader('Content-Disposition', 'attachment; filename="yoklama_raporu.xlsx"');
     await workbook.xlsx.write(res);
     res.end();
   } catch (err) {
-    console.error('Excel export error:', err);
-    res.status(500).json({ 
-      success: false,
-      error: 'Excel export başarısız', 
-      details: err.message 
-    });
+    res.status(500).json({ error: 'Excel export başarısız', details: err.message });
   }
 };

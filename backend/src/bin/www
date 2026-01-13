@@ -11,10 +11,25 @@
 // failures when environment variables were missing. If you need Sequelize
 // migrations, run them via CLI without requiring models at runtime.
 // require('../models');
-var app = require('../app.js');
+
+// Wrap in try-catch to see startup errors
+try {
+  var app = require('../app.js');
+} catch (err) {
+  console.error('❌ Error loading app.js:', err);
+  process.exit(1);
+}
+
 var debug = require('debug')('api:server');
 var http = require('http');
-const socketService = require('../services/socketService');
+
+let socketService;
+try {
+  socketService = require('../services/socketService');
+} catch (err) {
+  console.error('❌ Error loading socketService:', err);
+  process.exit(1);
+}
 
 /**
  * Get port from environment and store in Express.
@@ -32,21 +47,37 @@ var server = http.createServer(app);
 /**
  * Initialize WebSocket server
  */
-socketService.initialize(server);
+try {
+  socketService.initialize(server);
+} catch (err) {
+  console.error('❌ Error initializing socketService:', err);
+  process.exit(1);
+}
 
 /**
  * Start cron jobs
  */
-const cronJobs = require('../jobs/cronJobs');
-cronJobs.start();
+let cronJobs;
+try {
+  cronJobs = require('../jobs/cronJobs');
+  cronJobs.start();
+} catch (err) {
+  console.error('❌ Error loading/starting cronJobs:', err);
+  process.exit(1);
+}
 
 /**
  * Listen on provided port, on all network interfaces.
  */
 
-server.listen(port);
-server.on('error', onError);
-server.on('listening', onListening);
+try {
+  server.listen(port);
+  server.on('error', onError);
+  server.on('listening', onListening);
+} catch (err) {
+  console.error('❌ Error starting server:', err);
+  process.exit(1);
+}
 
 /**
  * Normalize a port into a number, string, or false.

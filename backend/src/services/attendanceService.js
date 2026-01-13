@@ -34,16 +34,17 @@ module.exports = {
   checkAttendance,
   createSession: async ({ section_id, instructor_id, date, start_time, end_time, latitude, longitude }) => {
     // DB'ye yeni yoklama oturumu ekle
+    // instructor_id artık Faculty ID olmalı, User ID değil
     return await prisma.attendance_sessions.create({
       data: {
         section_id,
-        instructor_id,
+        instructor_id: instructor_id || null, // Faculty ID
         date: new Date(date),
         start_time: new Date(start_time),
         end_time: new Date(end_time),
         latitude: latitude || 0,
         longitude: longitude || 0,
-        geofence_radius: 15, // default
+        geofence_radius: 50, // 50 metre (GPS için daha uygun)
         qr_code: '', // opsiyonel, burada üretilebilir
         status: 'active'
       }

@@ -25,9 +25,9 @@ const eventsRouter = require('./routes/events');
 const schedulingRouter = require('./routes/scheduling');
 const reservationsRouter = require('./routes/reservations');
 const analyticsRouter = require('./routes/analytics');
-const twoFactorRouter = require('./routes/twoFactor');
 const notificationsRouter = require('./routes/notifications');
 const sensorsRouter = require('./routes/sensors');
+const twoFactorRouter = require('./routes/twoFactor');
 const adminRouter = require('./routes/admin');
 
 const app = express();
@@ -83,40 +83,32 @@ app.use((req, res, next) => {
 });
 
 // Rate limiting (enhanced protection)
-// Development ortamında rate limit'i devre dışı bırak veya çok yüksek limit koy
-if (process.env.NODE_ENV === 'production') {
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Production: 100 requests per 15 minutes
-    message: 'Too many requests from this IP, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false,
-    handler: (req, res) => {
-      logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
-      res.status(429).json({
-        success: false,
-        error: 'Too many requests, please try again later.'
-      });
-    }
-  });
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn(`Rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      success: false,
+      error: 'Too many requests, please try again later.'
+    });
+  }
+});
 
-  app.use('/api/v1/', limiter);
+app.use('/api/v1/', limiter);
 
-  // Stricter rate limiting for auth endpoints
-  const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 5, // Production: 5 requests per 15 minutes
-    message: 'Too many authentication attempts, please try again later.',
-    skipSuccessfulRequests: true,
-    standardHeaders: true,
-    legacyHeaders: false
-  });
+// Stricter rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5, // Limit to 5 requests per windowMs
+  message: 'Too many authentication attempts, please try again later.',
+  skipSuccessfulRequests: true
+});
 
-  app.use('/api/v1/auth/', authLimiter);
-} else {
-  // Development: Rate limit devre dışı veya çok yüksek limit
-  console.log('⚠️  Rate limiting disabled in development mode');
-}
+app.use('/api/v1/auth/', authLimiter);
 
 // Routes
 app.use('/api/v1', indexRouter);
@@ -134,9 +126,9 @@ app.use('/api/v1/events', eventsRouter);
 app.use('/api/v1/scheduling', schedulingRouter);
 app.use('/api/v1/reservations', reservationsRouter);
 app.use('/api/v1/analytics', analyticsRouter);
-app.use('/api/v1/2fa', twoFactorRouter);
 app.use('/api/v1/notifications', notificationsRouter);
 app.use('/api/v1/sensors', sensorsRouter);
+app.use('/api/v1/2fa', twoFactorRouter);
 app.use('/api/v1/admin', adminRouter);
 
 // Error handler (must be last)

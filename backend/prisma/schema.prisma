@@ -22,8 +22,8 @@ model User {
   reset_password_token       String?                 @db.VarChar(255)
   reset_password_expires     DateTime?               @db.Timestamptz(6)
   refresh_token              String?
-  twoFactorEnabled           Boolean?                @default(false) @map("two_factor_enabled")
   twoFactorSecret            String?                 @map("two_factor_secret") @db.VarChar(255)
+  twoFactorEnabled           Boolean?                 @default(false) @map("two_factor_enabled")
   createdAt                  DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                  DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
   admins                     admins?
@@ -61,8 +61,12 @@ model Student {
   userId            String               @unique @map("user_id") @db.Uuid
   studentNumber     String               @unique @map("student_number") @db.VarChar(255)
   departmentId      String               @map("department_id") @db.Uuid
+  admissionYear     Int?                @map("admission_year")
+  currentSemester   Int?                @default(1) @map("current_semester")
   gpa               Decimal?             @default(0.0) @db.Decimal(3, 2)
   cgpa              Decimal?             @default(0.0) @db.Decimal(3, 2)
+  totalCredits      Int?                @default(0) @map("total_credits")
+  enrollmentStatus  String?              @default("active") @map("enrollment_status") @db.VarChar(255)
   created_at        DateTime             @default(now()) @db.Timestamptz(6)
   updated_at        DateTime             @updatedAt @db.Timestamptz(6)
   attendanceRecords attendance_records[]
@@ -167,7 +171,7 @@ model course_sections {
   section_number     Int
   semester           enum_courses_semester
   year               Int
-  instructor_id      String                @db.Uuid
+  instructor_id      String?               @db.Uuid
   capacity           Int
   enrolled_count     Int                   @default(0)
   schedule_json      Json?

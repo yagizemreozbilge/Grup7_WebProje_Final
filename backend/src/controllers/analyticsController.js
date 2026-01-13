@@ -1,7 +1,6 @@
 const prisma = require('../prisma');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
-const ExcelService = require('../services/excelService');
 
 const analyticsController = {
   // GET /api/v1/analytics/dashboard - Admin dashboard statistics
@@ -99,11 +98,51 @@ const analyticsController = {
   // GET /api/v1/analytics/academic-performance
   async getAcademicPerformance(req, res, next) {
     try {
+      // Get all students with GPA/CGPA
+      const students = await prisma.student.findMany({
+        where: {
+          OR: [
+            { gpa: { not: null } },
+            { cgpa: { not: null } }
+          ]
+        },
+        include: {
+          department: {
+            select: {
+              name: true,
+              code: true
+            }
+          },
+          user: {
+            select: {
+              fullName: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      // Calculate overall statistics
+      const studentsWithGPA = students.filter(s => s.gpa !== null);
+      const studentsWithCGPA = students.filter(s => s.cgpa !== null);
+      
+      const overallAverageGPA = studentsWithGPA.length > 0
+        ? studentsWithGPA.reduce((sum, s) => sum + parseFloat(s.gpa), 0) / studentsWithGPA.length
+        : 0;
+      
+      const overallAverageCGPA = studentsWithCGPA.length > 0
+        ? studentsWithCGPA.reduce((sum, s) => sum + parseFloat(s.cgpa), 0) / studentsWithCGPA.length
+        : 0;
+
       // Average GPA by department
       const gpaByDepartment = await prisma.student.groupBy({
         by: ['departmentId'],
         _avg: {
-          gpa: true
+          gpa: true,
+          cgpa: true
+        },
+        _count: {
+          id: true
         },
         where: {
           gpa: {
@@ -121,7 +160,9 @@ const analyticsController = {
       const avgGpaByDepartment = gpaByDepartment.map(item => ({
         departmentId: item.departmentId,
         departmentName: departmentMap[item.departmentId] || 'Unknown',
-        averageGPA: item._avg.gpa ? parseFloat(item._avg.gpa) : 0
+        averageGPA: item._avg.gpa ? parseFloat(item._avg.gpa) : 0,
+        averageCGPA: item._avg.cgpa ? parseFloat(item._avg.cgpa) : 0,
+        studentCount: item._count.id
       }));
 
       // Grade distribution
@@ -236,6 +277,10 @@ const analyticsController = {
       res.status(200).json({
         success: true,
         data: {
+          overallAverageGPA: parseFloat(overallAverageGPA.toFixed(2)),
+          overallAverageCGPA: parseFloat(overallAverageCGPA.toFixed(2)),
+          totalStudentsWithGPA: studentsWithGPA.length,
+          totalStudentsWithCGPA: studentsWithCGPA.length,
           averageGpaByDepartment: avgGpaByDepartment,
           gradeDistribution,
           passRate: Math.round(passRate * 10) / 10,
@@ -645,33 +690,116 @@ const analyticsController = {
       }
 
       if (format === 'excel') {
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Campus Information System';
+        workbook.created = new Date();
+        
+        const worksheet = workbook.addWorksheet(`${type}_report`);
+
         let data = [];
         let headers = [];
+        let title = '';
 
         switch (type) {
           case 'academic':
             data = await analyticsController.getAcademicPerformanceData();
-            headers = ['Bölüm', 'Ortalama GPA', 'En Düşük GPA', 'En Yüksek GPA', 'Öğrenci Sayısı'];
+            headers = ['Department', 'Average GPA'];
+            title = 'Academic Performance Report';
             break;
           case 'attendance':
             data = await analyticsController.getAttendanceData();
-            headers = ['Ders Kodu', 'Ders Adı', 'Bölüm', 'Toplam Oturum', 'Öğrenci Sayısı', 'Toplam Kayıt', 'İşaretli Kayıt', 'Katılım Oranı (%)'];
+            headers = ['Course Code', 'Course Name', 'Total Sessions', 'Total Records', 'Attendance Rate'];
+            title = 'Attendance Report';
             break;
           case 'meal':
             data = await analyticsController.getMealData();
-            headers = ['Tarih', 'Kahvaltı', 'Öğle', 'Akşam', 'Toplam Rezervasyon', 'Kullanılan', 'İptal Edilen', 'Toplam Tutar'];
+            headers = ['Date', 'Breakfast', 'Lunch', 'Dinner', 'Total'];
+            title = 'Meal Usage Report';
             break;
           case 'event':
             data = await analyticsController.getEventData();
-            headers = ['Etkinlik', 'Kategori', 'Tarih', 'Konum', 'Kayıt Sayısı', 'Katılan', 'Kapasite', 'Kayıt Oranı (%)', 'Katılım Oranı (%)', 'Ücret'];
+            headers = ['Event', 'Category', 'Registrations', 'Capacity', 'Registration Rate'];
+            title = 'Event Report';
             break;
         }
 
-        // Create modern Excel report
-        const workbook = await ExcelService.createAnalyticsReport(type, data, headers);
+        // Add title row
+        const titleRow = worksheet.addRow([title]);
+        titleRow.font = { size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+        titleRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF0F4C81' }
+        };
+        titleRow.alignment = { vertical: 'middle', horizontal: 'center' };
+        titleRow.height = 30;
+        worksheet.mergeCells(1, 1, 1, headers.length);
+
+        // Add date row
+        const dateRow = worksheet.addRow([`Generated on: ${new Date().toLocaleString()}`]);
+        dateRow.font = { size: 10, italic: true };
+        dateRow.alignment = { horizontal: 'right' };
+        worksheet.mergeCells(2, 1, 2, headers.length);
+
+        // Add empty row
+        worksheet.addRow([]);
+
+        // Add header row
+        const headerRow = worksheet.addRow(headers);
+        headerRow.font = { size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+        headerRow.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF1E3A8A' }
+        };
+        headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+        headerRow.height = 25;
+        headerRow.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FF000000' } },
+            left: { style: 'thin', color: { argb: 'FF000000' } },
+            bottom: { style: 'thin', color: { argb: 'FF000000' } },
+            right: { style: 'thin', color: { argb: 'FF000000' } }
+          };
+        });
+
+        // Add data rows
+        data.forEach((row, index) => {
+          const dataRow = worksheet.addRow(Array.isArray(row) ? row : Object.values(row));
+          dataRow.alignment = { vertical: 'middle', horizontal: 'left' };
+          dataRow.height = 20;
+          
+          // Alternate row colors
+          if (index % 2 === 0) {
+            dataRow.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFF8FAFC' }
+            };
+          }
+          
+          dataRow.eachCell((cell) => {
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+              right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+            };
+          });
+        });
+
+        // Set column widths
+        headers.forEach((header, index) => {
+          worksheet.getColumn(index + 1).width = Math.max(header.length + 5, 15);
+        });
+
+        // Freeze header row
+        worksheet.views = [
+          { state: 'frozen', ySplit: 4 }
+        ];
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=${type}_raporu.xlsx`);
+        res.setHeader('Content-Disposition', `attachment; filename=${type}_report.xlsx`);
 
         await workbook.xlsx.write(res);
         res.end();
@@ -683,19 +811,19 @@ const analyticsController = {
         switch (type) {
           case 'academic':
             data = await analyticsController.getAcademicPerformanceData();
-            headers = ['Bölüm', 'Ortalama GPA', 'En Düşük GPA', 'En Yüksek GPA', 'Öğrenci Sayısı'];
+            headers = ['Department', 'Average GPA'];
             break;
           case 'attendance':
             data = await analyticsController.getAttendanceData();
-            headers = ['Ders Kodu', 'Ders Adı', 'Bölüm', 'Toplam Oturum', 'Öğrenci Sayısı', 'Toplam Kayıt', 'İşaretli Kayıt', 'Katılım Oranı (%)'];
+            headers = ['Course Code', 'Course Name', 'Total Sessions', 'Total Records', 'Attendance Rate'];
             break;
           case 'meal':
             data = await analyticsController.getMealData();
-            headers = ['Tarih', 'Kahvaltı', 'Öğle', 'Akşam', 'Toplam Rezervasyon', 'Kullanılan', 'İptal Edilen', 'Toplam Tutar'];
+            headers = ['Date', 'Breakfast', 'Lunch', 'Dinner', 'Total'];
             break;
           case 'event':
             data = await analyticsController.getEventData();
-            headers = ['Etkinlik', 'Kategori', 'Tarih', 'Konum', 'Kayıt Sayısı', 'Katılan', 'Kapasite', 'Kayıt Oranı (%)', 'Katılım Oranı (%)', 'Ücret'];
+            headers = ['Event', 'Category', 'Registrations', 'Capacity', 'Registration Rate'];
             break;
         }
 
@@ -721,35 +849,19 @@ const analyticsController = {
   // Helper methods for export
   async getAcademicPerformanceData() {
     try {
-      const departments = await prisma.department.findMany({
-        include: {
-          students: {
-            where: {
-              gpa: { not: null }
-            }
-          }
-        }
+      const gpaByDepartment = await prisma.student.groupBy({
+        by: ['departmentId'],
+        _avg: { gpa: true }
       });
+      const departments = await prisma.department.findMany();
+      const deptMap = {};
+      departments.forEach(dept => { deptMap[dept.id] = dept.name; });
       
-      return departments.map(dept => {
-        const students = dept.students || [];
-        const gpas = students.map(s => parseFloat(s.gpa || 0)).filter(g => g > 0);
-        const avgGpa = gpas.length > 0 
-          ? (gpas.reduce((a, b) => a + b, 0) / gpas.length).toFixed(2)
-          : '0.00';
-        const minGpa = gpas.length > 0 ? Math.min(...gpas).toFixed(2) : '0.00';
-        const maxGpa = gpas.length > 0 ? Math.max(...gpas).toFixed(2) : '0.00';
-        
-        return [
-          dept.name || 'Bilinmeyen',
-          avgGpa,
-          minGpa,
-          maxGpa,
-          students.length.toString()
-        ];
-      });
+      return gpaByDepartment.map(item => [
+        deptMap[item.departmentId] || 'Unknown',
+        item._avg.gpa ? parseFloat(item._avg.gpa).toFixed(2) : '0.00'
+      ]);
     } catch (error) {
-      console.error('Error getting academic data:', error);
       return [];
     }
   },
@@ -761,53 +873,24 @@ const analyticsController = {
         include: {
           sections: {
             include: {
-              attendanceSessions: {
-                include: {
-                  attendanceRecords: true
-                }
-              },
-              enrollments: {
-                where: { status: 'active' }
-              }
+              attendanceSessions: true,
+              enrollments: true
             }
-          },
-          departments: true
+          }
         }
       });
       
       return courses.map(course => {
         let totalSessions = 0;
         let totalRecords = 0;
-        let totalStudents = 0;
-        let flaggedRecords = 0;
-        
         course.sections.forEach(section => {
           totalSessions += section.attendanceSessions.length;
-          section.attendanceSessions.forEach(session => {
-            const records = session.attendanceRecords || [];
-            totalRecords += records.length;
-            flaggedRecords += records.filter(r => r.is_flagged).length;
-          });
-          totalStudents += section.enrollments.length;
+          totalRecords += section.attendanceSessions.reduce((sum, s) => sum + (s.attendanceRecords?.length || 0), 0);
         });
-        
-        const rate = totalSessions > 0 && totalStudents > 0 
-          ? ((totalRecords / (totalSessions * totalStudents)) * 100).toFixed(2)
-          : '0.00';
-        
-        return [
-          course.code || 'N/A',
-          course.name || 'Bilinmeyen',
-          course.departments?.name || 'N/A',
-          totalSessions.toString(),
-          totalStudents.toString(),
-          totalRecords.toString(),
-          flaggedRecords.toString(),
-          rate + '%'
-        ];
+        const rate = totalSessions > 0 ? (totalRecords / totalSessions) * 100 : 0;
+        return [course.code, course.name, totalSessions, totalRecords, rate.toFixed(2) + '%'];
       });
     } catch (error) {
-      console.error('Error getting attendance data:', error);
       return [];
     }
   },
@@ -815,10 +898,6 @@ const analyticsController = {
   async getMealData() {
     try {
       const reservations = await prisma.mealReservation.findMany({
-        include: {
-          cafeteria: true,
-          menu: true
-        },
         orderBy: { date: 'asc' }
       });
       
@@ -826,36 +905,14 @@ const analyticsController = {
       reservations.forEach(r => {
         const dateKey = r.date.toISOString().split('T')[0];
         if (!dailyData[dateKey]) {
-          dailyData[dateKey] = { 
-            date: dateKey, 
-            breakfast: 0, 
-            lunch: 0, 
-            dinner: 0, 
-            total: 0,
-            totalAmount: 0,
-            used: 0,
-            cancelled: 0
-          };
+          dailyData[dateKey] = { date: dateKey, breakfast: 0, lunch: 0, dinner: 0, total: 0 };
         }
         dailyData[dateKey][r.mealType]++;
         dailyData[dateKey].total++;
-        dailyData[dateKey].totalAmount += parseFloat(r.amount || 0);
-        if (r.status === 'used') dailyData[dateKey].used++;
-        if (r.status === 'cancelled') dailyData[dateKey].cancelled++;
       });
       
-      return Object.values(dailyData).map(d => [
-        new Date(d.date).toLocaleDateString('tr-TR'),
-        d.breakfast.toString(),
-        d.lunch.toString(),
-        d.dinner.toString(),
-        d.total.toString(),
-        d.used.toString(),
-        d.cancelled.toString(),
-        d.totalAmount.toFixed(2) + ' ₺'
-      ]);
+      return Object.values(dailyData).map(d => [d.date, d.breakfast, d.lunch, d.dinner, d.total]);
     } catch (error) {
-      console.error('Error getting meal data:', error);
       return [];
     }
   },
@@ -863,45 +920,17 @@ const analyticsController = {
   async getEventData() {
     try {
       const events = await prisma.event.findMany({
-        include: { 
-          registrations: {
-            include: {
-              user: {
-                select: {
-                  fullName: true,
-                  email: true
-                }
-              }
-            }
-          }
-        },
-        orderBy: { date: 'desc' }
+        include: { registrations: true }
       });
       
-      return events.map(event => {
-        const checkedIn = event.registrations.filter(r => r.checkedIn).length;
-        const rate = event.capacity > 0 
-          ? ((event.registeredCount / event.capacity) * 100).toFixed(2)
-          : '0.00';
-        const checkInRate = event.registeredCount > 0
-          ? ((checkedIn / event.registeredCount) * 100).toFixed(2)
-          : '0.00';
-        
-        return [
-          event.title || 'Bilinmeyen',
-          event.category || 'N/A',
-          new Date(event.date).toLocaleDateString('tr-TR'),
-          event.location || 'N/A',
-          event.registeredCount.toString(),
-          checkedIn.toString(),
-          event.capacity.toString(),
-          rate + '%',
-          checkInRate + '%',
-          event.isPaid ? (parseFloat(event.price || 0).toFixed(2) + ' ₺') : 'Ücretsiz'
-        ];
-      });
+      return events.map(event => [
+        event.title,
+        event.category,
+        event.registeredCount,
+        event.capacity,
+        event.capacity > 0 ? ((event.registeredCount / event.capacity) * 100).toFixed(2) + '%' : '0%'
+      ]);
     } catch (error) {
-      console.error('Error getting event data:', error);
       return [];
     }
   }
