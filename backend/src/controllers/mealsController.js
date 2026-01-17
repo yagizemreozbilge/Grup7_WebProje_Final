@@ -1,9 +1,26 @@
 const prisma = require('../prisma');
+const crypto = require('crypto');
 
 // Get all menus
 const getMenus = async (req, res) => {
   try {
+    const { date } = req.query;
+    
+    const where = {};
+    if (date) {
+      const targetDate = new Date(date);
+      targetDate.setHours(0, 0, 0, 0);
+      const nextDate = new Date(targetDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      
+      where.date = {
+        gte: targetDate,
+        lt: nextDate
+      };
+    }
+
     const menus = await prisma.mealMenu.findMany({
+      where,
       include: {
         cafeteria: true
       },
@@ -98,20 +115,100 @@ const deleteMenu = async (req, res) => {
 // Create reservation
 const createReservation = async (req, res) => {
   try {
-    const { menuId, quantity } = req.body;
+    const { menu_id, cafeteria_id, meal_type, date, amount } = req.body;
     const userId = req.user.id;
     
+    // Validate required fields
+    if (!menu_id || !cafeteria_id || !meal_type || !date) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields: menu_id, cafeteria_id, meal_type, date' 
+      });
+    }
+
+    // Get menu to verify it exists and get price if amount not provided
+    const menu = await prisma.mealMenu.findUnique({
+      where: { id: menu_id },
+      include: { cafeteria: true }
+    });
+
+    if (!menu) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Menu not found' 
+      });
+    }
+
+    // Generate QR code
+    const qrCode = crypto.randomUUID();
+
+    // Calculate amount if not provided (default to 0 for free meals)
+    const finalAmount = amount !== undefined ? parseFloat(amount) : 0;
+
+    // Check wallet balance if amount > 0
+    if (finalAmount > 0) {
+      const wallet = await prisma.wallet.findUnique({
+        where: { userId }
+      });
+
+      if (!wallet || wallet.balance < finalAmount) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Insufficient wallet balance' 
+        });
+      }
+
+      // Deduct from wallet
+      await prisma.wallet.update({
+        where: { userId },
+        data: {
+          balance: {
+            decrement: finalAmount
+          }
+        }
+      });
+
+      // Create transaction record
+      await prisma.transaction.create({
+        data: {
+          walletId: wallet.id,
+          type: 'payment',
+          amount: finalAmount,
+          balanceAfter: wallet.balance - finalAmount,
+          referenceType: 'meal_reservation',
+          description: `Meal reservation for ${meal_type} on ${date}`
+        }
+      });
+    }
+
     const reservation = await prisma.mealReservation.create({
       data: {
         userId,
-        menuId,
-        quantity: quantity || 1
+        menuId: menu_id,
+        cafeteriaId: cafeteria_id,
+        mealType: meal_type,
+        date: new Date(date),
+        amount: finalAmount,
+        qrCode: qrCode,
+        status: 'reserved'
+      },
+      include: {
+        menu: {
+          include: {
+            cafeteria: true
+          }
+        }
       }
     });
+
     res.status(201).json({ success: true, data: reservation });
   } catch (error) {
     console.error('Error creating reservation:', error);
-    res.status(500).json({ success: false, error: 'Failed to create reservation' });
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to create reservation',
+      details: error.message 
+    });
   }
 };
 

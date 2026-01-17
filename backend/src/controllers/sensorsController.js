@@ -9,14 +9,44 @@ const sensorsController = {
         where: {
           isActive: true
         },
+        include: {
+          sensorData: {
+            orderBy: {
+              timestamp: 'desc'
+            },
+            take: 1
+          }
+        },
         orderBy: {
           createdAt: 'desc'
         }
       });
 
+      // Format sensors with latestReading
+      const formattedSensors = sensors.map(sensor => {
+        const latestReading = sensor.sensorData[0] || null;
+        return {
+          id: sensor.id,
+          sensorId: sensor.sensorId,
+          name: sensor.name,
+          type: sensor.type,
+          location: sensor.location,
+          unit: sensor.unit,
+          isActive: sensor.isActive,
+          metadata: sensor.metadata,
+          createdAt: sensor.createdAt,
+          updatedAt: sensor.updatedAt,
+          latestReading: latestReading ? {
+            value: parseFloat(latestReading.value),
+            unit: latestReading.unit,
+            timestamp: latestReading.timestamp
+          } : null
+        };
+      });
+
       res.status(200).json({
         success: true,
-        data: sensors
+        data: formattedSensors
       });
     } catch (error) {
       next(error);
