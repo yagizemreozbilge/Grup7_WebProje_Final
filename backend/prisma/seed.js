@@ -366,10 +366,12 @@ async function main() {
         name: 'Programlamaya Giriş',
         description: 'Temel programlama kavramları ve algoritma tasarımı',
         credits: 4,
-        departmentId: deptCE,
+        department_id: deptCE,
         semester: 'fall',
         year: 2024,
-        isActive: true
+        is_active: true,
+        created_at: now,
+        updated_at: now
       },
       {
         id: 'course2222-2222-2222-2222-222222222222',
@@ -377,10 +379,12 @@ async function main() {
         name: 'Veri Yapıları',
         description: 'Temel veri yapıları ve algoritmalar',
         credits: 4,
-        departmentId: deptCE,
+        department_id: deptCE,
         semester: 'fall',
         year: 2024,
-        isActive: true
+        is_active: true,
+        created_at: now,
+        updated_at: now
       },
       {
         id: 'course3333-3333-3333-3333-333333333333',
@@ -388,15 +392,17 @@ async function main() {
         name: 'Yazılım Mühendisliği',
         description: 'Yazılım geliştirme süreçleri ve metodolojileri',
         credits: 3,
-        departmentId: deptCE,
+        department_id: deptCE,
         semester: 'spring',
         year: 2024,
-        isActive: true
+        is_active: true,
+        created_at: now,
+        updated_at: now
       }
     ];
 
     for (const course of courses) {
-      await prisma.course.upsert({
+      await prisma.courses.upsert({
         where: { id: course.id },
         update: {},
         create: course
@@ -406,14 +412,14 @@ async function main() {
     const sections = [
       {
         id: 'section1111-1111-1111-1111-111111111111',
-        courseId: 'course1111-1111-1111-1111-111111111111',
-        sectionNumber: 1,
+        course_id: 'course1111-1111-1111-1111-111111111111',
+        section_number: 1,
         semester: 'fall',
         year: 2024,
-        instructorId: facultyUser.faculty.id,
+        instructor_id: facultyUser.faculty.id,
         capacity: 50,
-        enrolledCount: 0,
-        scheduleJson: {
+        enrolled_count: 0,
+        schedule_json: {
           days: ['Monday', 'Wednesday'],
           startTime: '09:00',
           endTime: '10:30',
@@ -422,14 +428,14 @@ async function main() {
       },
       {
         id: 'section2222-2222-2222-2222-222222222222',
-        courseId: 'course2222-2222-2222-2222-222222222222',
-        sectionNumber: 1,
+        course_id: 'course2222-2222-2222-2222-222222222222',
+        section_number: 1,
         semester: 'fall',
         year: 2024,
-        instructorId: facultyUser.faculty.id,
+        instructor_id: facultyUser.faculty.id,
         capacity: 40,
-        enrolledCount: 0,
-        scheduleJson: {
+        enrolled_count: 0,
+        schedule_json: {
           days: ['Tuesday', 'Thursday'],
           startTime: '14:00',
           endTime: '15:30',
@@ -439,7 +445,7 @@ async function main() {
     ];
 
     for (const section of sections) {
-      await prisma.courseSection.upsert({
+      await prisma.course_sections.upsert({
         where: { id: section.id },
         update: {},
         create: section
@@ -505,7 +511,15 @@ async function main() {
     const createdSensor = await prisma.sensor.upsert({
       where: { sensorId: sensor.sensorId },
       update: {},
-      create: sensor
+      create: {
+        sensorId: sensor.sensorId,
+        name: sensor.name,
+        type: sensor.type,
+        location: sensor.location,
+        unit: sensor.unit,
+        isActive: sensor.isActive,
+        metadata: sensor.metadata
+      }
     });
 
     // Her sensör için son 24 saatlik veri ekle
@@ -527,7 +541,7 @@ async function main() {
       await prisma.sensorData.create({
         data: {
           sensorId: createdSensor.id,
-          value: value,
+          value: parseFloat(value),
           unit: sensor.unit,
           timestamp: timestamp,
           metadata: {}
