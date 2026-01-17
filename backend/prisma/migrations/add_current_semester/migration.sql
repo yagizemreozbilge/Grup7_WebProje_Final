@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "admission_year" INTEGER,
+ADD COLUMN IF NOT EXISTS "current_semester" INTEGER DEFAULT 1,
+ADD COLUMN IF NOT EXISTS "total_credits" INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "enrollment_status" VARCHAR(255) DEFAULT 'active';
+
